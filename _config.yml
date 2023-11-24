@@ -1,4 +1,5 @@
 theme: minima
 minima:
   social_links:
-    - { platform: github, user_url: "https://github.com/gwenneg" }
+    - platform: github
+      user_url: "https://github.com/gwenneg"
