@@ -3,7 +3,7 @@ author:
   name: Gwenneg Lepage
   email:
 description: This is a test
-baseurl: ""
+baseurl: "/"
 url: "https://gwenneg.github.io"
 plugins:
   - jekyll-feed
