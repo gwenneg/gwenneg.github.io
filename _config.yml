@@ -1,4 +1,13 @@
-theme: minima
+title: Gwenneg's test
+author:
+  name: Gwenneg Lepage
+  email:
+description: This is a test
+baseurl: ""
+url: "https://gwenneg.github.io"
+plugins:
+  - jekyll-feed
 minima:
+  skin: solarized-dark
   social_links:
     github: gwenneg
