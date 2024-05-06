@@ -1,0 +1,3 @@
+:page-layout: page
+:page-title: About
+:page-permalink: /about/
