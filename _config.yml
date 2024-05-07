@@ -20,6 +20,6 @@ asciidoc: {}
 asciidoctor:
   attributes:
     icons: font
-    source-highlighter: rouge
+    source-highlighter: highlight.js
 
 show_excerpts: true
