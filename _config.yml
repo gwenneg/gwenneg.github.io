@@ -5,7 +5,7 @@ title: Gwenneg's blog
 description: >-
   Gwenneg's blog
 
-remote_theme: jekyll/minima@1012451
+remote_theme: jekyll/minima
 
 minima:
   social_links:
