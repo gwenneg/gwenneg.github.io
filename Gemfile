@@ -1,10 +1,11 @@
 source 'https://rubygems.org'
 
-gem 'github-pages', '~> 231', group: :jekyll_plugins
-gem 'webrick', '~> 1.8'
+gem 'jekyll', '~> 4.3.3'
 
 # The plugins order matters! See https://github.com/asciidoctor/jekyll-asciidoc?tab=readme-ov-file#plugin-ordering
 group :jekyll_plugins do
-  gem 'jekyll-asciidoc'
-  gem 'jekyll-feed'
+  gem 'jekyll-asciidoc', '~> 3.0.0'
+  gem 'jekyll-feed', '~> 0.17.0'
+  gem 'jekyll-remote-theme', '~> 0.4.3'
+  gem 'jekyll-seo-tag', '~> 2.8.0'
 end
