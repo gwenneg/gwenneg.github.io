@@ -41,7 +41,8 @@ I can't guarantee that everything will work out of the box with other logging AP
 
 The JBoss Logging API doesn't offer a way to change the level of a logger programmatically, so we need the help of the `java.util.logging` API to do it:
 
-```java
+[source,java]
+----
 import java.util.logging.Level; // <1>
 import java.util.logging.Logger; // <1>
 
@@ -53,7 +54,7 @@ public class LogLevelManager {
         logger.setLevel(level);
     }
 }
-```
+----
 <1> Make sure you're importing classes from the `java.util.logging` package.
 <2> Any category as described in the https://quarkus.io/guides/logging#logging-categories[Logging configuration guide^] will work as the logger name.
 <3> `Level#parse` will throw exceptions if the level name is not valid. Please handle them carefully.
@@ -81,16 +82,18 @@ First, the Quarkus app needs to depend on the https://docs.quarkiverse.io/quarku
 
 We'll also use a very simple data structure to deserialize the payload with Jackson:
 
-```java
+[source,java]
+----
 public class LogConfig {
     public String category;
     public String level;
 }
-```
+----
 
 Then, here's an update of the `LogLevelManager` class to make it get the variant from Unleash, deserialize the payload and change the level of a series of loggers:
 
-```java
+[source,java]
+----
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.getunleash.Unleash;
@@ -149,7 +152,7 @@ public class LogLevelManager {
         }
     }
 }
-```
+----
 <1> From now on, `LogLevelManager` is an `@ApplicationScoped` bean.
 <2> `Unleash` is an `@ApplicationScoped` bean produced by the https://docs.quarkiverse.io/quarkus-unleash/dev/index.html[quarkus-unleash^] extension.
 <3> Be careful about the argument passed to `Unleash#getVariant`: it has to be the toggle name, not the variant name.
@@ -176,7 +179,8 @@ Using the Subscriber API with the https://docs.quarkiverse.io/quarkus-unleash/de
 `UnleashSubscriber` needs to be implemented in a CDI bean and that's it!
 The extension will pass the bean to the Unleash client builder automatically.
 
-```java
+[source,java]
+----
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.getunleash.Unleash;
@@ -249,7 +253,7 @@ public class LogLevelManager implements UnleashSubscriber { // <1>
         }
     }
 }
-```
+----
 <1> We're still using the same `LogLevelManager` class, but now it's implementing `UnleashSubscriber`.
 <2> This method is invoked every time the Unleash client fetches toggles from the server.
 <3> We'll update the loggers level only if the toggles changed server-side.
@@ -273,18 +277,20 @@ Here's how I implemented that.
 
 First, the data structure of the variant payload needs a small addition:
 
-```java
+[source,java]
+----
 public class LogConfig {
     public String hostName; // <1>
     public String category;
     public String level;
 }
-```
+----
 <1> That's new!
 
 Now, we can introduce a host filtering capability in `LogLevelManager`:
 
-```java
+[source,java]
+----
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.getunleash.Unleash;
@@ -374,14 +380,15 @@ public class LogLevelManager implements UnleashSubscriber {
         }
     }
 }
-```
+----
 <1> In OpenShift, we're passing the generated pod name through the `HOST_NAME` environment variable.
 <2> That's new!
 <3> This block is used to filter hosts based on a host name prefix. That's enough for our use case, but a regular expression could be used for finer filtering.
 
 Here's how the variant payload may look like after these changes:
 
-```json
+[source,json]
+----
 [
   {
     "hostName": "unstable-service-7dbbcb4cc-9d9hl",
@@ -398,7 +405,7 @@ Here's how the variant payload may look like after these changes:
     "level": "FINER"
   }
 ]
-```
+----
 
 In that payload:
 
@@ -412,7 +419,8 @@ Changing the level of loggers through an Unleash variant should be a temporary a
 This means we need to revert the level of the loggers eventually when the troubleshooting is over.
 Doing so by hand would be painful, so let's see how we can automate that.
 
-```java
+[source,java]
+----
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.getunleash.Unleash;
@@ -536,7 +544,7 @@ public class LogLevelManager implements UnleashSubscriber {
         logger.setLevel(originalLevel); // <4>
     }
 }
-```
+----
 <1> That's new!
 <2> The original logger level is now stored in memory and will be used when the changes are eventually reverted.
 <3> If the level of a logger was previously modified from Unleash and that logger is no longer part of the latest Unleash variant payload, its level will be reverted to the original value.
