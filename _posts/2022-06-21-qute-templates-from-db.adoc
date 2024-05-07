@@ -38,7 +38,8 @@ This post will show examples based on https://quarkus.io/guides/hibernate-orm-pa
 
 The next sections will make use of this JPA entity:
 
-```java
+[source,java]
+----
 package org.acme;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
@@ -54,7 +55,7 @@ public class DbTemplate extends PanacheEntityBase {
 
     public String content;
 }
-```
+----
 <1> The template name will be the DB primary key.
 
 == The interesting part: connecting Qute to the database
@@ -64,7 +65,8 @@ Fortunately, Qute comes with a very interesting interface called `TemplateLocato
 
 Here's how it can be used with the `DbTemplate` entity we defined earlier:
 
-```java
+[source,java]
+----
 package org.acme;
 
 import io.quarkus.logging.Log;
@@ -117,7 +119,7 @@ public class DbTemplateLocator implements TemplateLocator {
         };
     }
 }
-```
+----
 <1> If your Quarkus app contains templates loaded from both the file system and a database, you will need to override the template locator default priority. Otherwise, Quarkus will try to load templates from the file system using `DbTemplateLocator` which could lead to exceptions or unpredictable behaviors.
 <2> Before Quarkus 2.10, integrating `DbTemplateLocator` with the Qute engine instance provided by Quarkus could only be done with a CDI observer like this.
 
@@ -129,7 +131,8 @@ Quarkus 2.10 recently introduced a new `@Locate` annotation that makes the https
 Now that the template locator is registered, we're ready to compile and render templates from the database with Qute.
 As you can see in the following example, DB templates are used exactly like file templates:
 
-```java
+[source,java]
+----
 package org.acme;
 
 import io.quarkus.qute.Engine;
@@ -152,7 +155,7 @@ public class EmailSender {
         }
     }
 }
-```
+----
 
 == Beware of Qute's internal cache
 
@@ -161,7 +164,8 @@ This means that you will need to remove a DB template from the Qute internal cac
 
 There are several ways of achieving that:
 
-```java
+[source,java]
+----
 package org.acme;
 
 import io.quarkus.qute.Engine;
@@ -183,7 +187,7 @@ public class DbEngineCacheManager {
         engine.clearTemplates(); <2>
     }
 }
-```
+----
 <1> This removes the templates for which the mapping id matches the given predicate.
 <2> This removes all templates from the cache.
 
@@ -191,7 +195,8 @@ Clearing that internal cache can become tricky if your app is running on a Kuber
 You will indeed need a way to broadcast to all pods (possibly using a Kafka topic or a DB table) an instruction to remove from the cache the templates that have been updated or deleted.
 There is a cheaper (yet very imperfect) way of keeping all pods caches synced though, using a scheduled job:
 
-```java
+[source,java]
+----
 package org.acme;
 
 import io.quarkus.qute.Engine;
@@ -211,7 +216,7 @@ public class DbEngineCacheScheduledCleaner {
         engine.clearTemplates();
     }
 }
-```
+----
 <1> All templates will be cleared from the internal cache every 5 minutes.
 
 == Preventing the deletion of an included template
@@ -221,7 +226,8 @@ If the inner template is deleted, then the outer template compilation will fail,
 
 Here's a way to look for the inclusion of a template into another one before deleting it:
 
-```java
+[source,java]
+----
 package org.acme;
 
 import javax.enterprise.context.ApplicationScoped;
@@ -250,7 +256,7 @@ public class TemplateRepository {
         }
     }
 }
-```
+----
 
 == Database templates validation
 
