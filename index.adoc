@@ -1,3 +1,5 @@
+:page-author_profile: true
+:page-classes: wide
 :page-layout: home
 
-Welcome!
+Welcome to my blog!

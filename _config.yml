@@ -1,25 +1,52 @@
-url: https://gwenneg.github.io
-
-title: Gwenneg's blog
-
-description: >-
-  Gwenneg's blog
-
-remote_theme: jekyll/minima
-
-minima:
-  social_links:
-    - platform: github
-      user_url: "https://github.com/gwenneg"
-    - platform: linkedin
-      user_url: "https://linkedin.com/in/gwenneg"
+# See https://github.com/mmistakes/minimal-mistakes/blob/master/_config.yml for details about the minimal-mistakes default config.
 
 # Required! See https://github.com/asciidoctor/jekyll-asciidoc?tab=readme-ov-file#configuration
 asciidoc: {}
-
 asciidoctor:
   attributes:
     icons: font
     source-highlighter: highlight.js
-
+author:
+  avatar: /assets/images/gwenneg.png
+  bio: Senior Software Engineer @ Red Hat
+  links:
+    - label: GitHub
+      icon: fab fa-fw fa-github
+      url: https://github.com/gwenneg/
+    - label: Linkedin
+      icon: fab fa-fw fa-linkedin
+      url: https://www.linkedin.com/in/gwenneg/
+  location: Toulouse, France
+  name: Gwenneg Lepage
+copyright: Gwenneg Lepage
+defaults:
+  - scope:
+      path: ""
+      type: posts
+    values:
+      author_profile: true
+      classes: wide
+      layout: single
+      related: true
+      share: true
+      show_date: true
+description: Gwenneg's blog
+encoding: utf-8
+footer:
+  links:
+    - label: "GitHub"
+      icon: "fab fa-fw fa-github"
+      url: "https://github.com/gwenneg/"
+    - label: "Linkedin"
+      icon: "fab fa-fw fa-linkedin"
+      url: "https://www.linkedin.com/in/gwenneg/"
+head_scripts:
+  - https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js
+locale: en-US
+minimal_mistakes_skin: default
+remote_theme: mmistakes/minimal-mistakes@4.26.2
+repository: gwenneg/gwenneg.github.io
+search: true
 show_excerpts: true
+title: Gwenneg's blog
+url: https://gwenneg.github.io

@@ -1,3 +1,2 @@
-:page-layout: page
-:page-title: About
-:page-permalink: /about/
+:page-classes: wide
+:page-layout: single
