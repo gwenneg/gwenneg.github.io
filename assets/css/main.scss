@@ -9,6 +9,52 @@ search: false
 @import "minimal-mistakes/skins/{{ site.minimal_mistakes_skin | default: 'default' }}";
 @import "minimal-mistakes";
 
+.admonitionblock > table {
+    border-collapse: separate;
+    font-size: 1em;
+}
+.admonitionblock > table td.content {
+    border-bottom: none;
+    border-left: 1px solid #646769;
+    border-right: none;
+    border-top: none;
+    padding-left: 1.125em;
+    padding-right: 1.25em;
+}
+.admonitionblock > table td.content > :last-child > :last-child {
+    margin-bottom: 0
+}
+.admonitionblock > table td.icon {
+    border: none;
+    display: table-cell;
+    text-align: center;
+    width: 80px;
+}
+.admonitionblock > table td.icon [class^="fa icon-"] {
+    font-size: 2.5em;
+    text-shadow: 1px 1px 2px rgba(0,0,0,.5);
+}
+.admonitionblock > table td.icon .icon-caution::before {
+    color: #bf3400;
+    content: "\f06d";
+}
+.admonitionblock > table td.icon .icon-important::before {
+    color: #bf0000;
+    content: "\f06a";
+}
+.admonitionblock > table td.icon .icon-note::before {
+    color: #4695eb;
+    content: "\f05a";
+}
+.admonitionblock > table td.icon .icon-tip::before {
+    color: #f6cc40;
+    content: "\f0eb";
+    text-shadow: 1px 1px 2px #f9de85;
+}
+.admonitionblock > table td.icon .icon-warning::before {
+    color: #bf6900;
+    content: "\f071";
+}
 .sectionbody {
-    font-size: 18px;
+    font-size: 0.75em;
 }
