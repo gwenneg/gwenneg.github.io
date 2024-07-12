@@ -9,13 +9,8 @@ asciidoctor:
 author:
   avatar: /assets/images/gwenneg.png
   bio: Senior Software Engineer @ Red Hat
-  links:
-    - label: GitHub
-      icon: fab fa-fw fa-github
-      url: https://github.com/gwenneg/
-    - label: Linkedin
-      icon: fab fa-fw fa-linkedin
-      url: https://www.linkedin.com/in/gwenneg/
+  github: gwenneg
+  linkedin: gwenneg
   location: Toulouse, France
   name: Gwenneg Lepage
 copyright: Gwenneg Lepage
