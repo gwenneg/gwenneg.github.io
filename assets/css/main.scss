@@ -55,6 +55,12 @@ search: false
     color: #bf6900;
     content: "\f071";
 }
+.highlight {
+    border: 1px solid rgb(170, 170, 170);
+}
+.highlight > code {
+    background-color: rgb(239, 239, 239);
+}
 .sectionbody {
     font-size: 0.75em;
 }
