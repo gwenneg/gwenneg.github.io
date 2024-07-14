@@ -1,17 +1,60 @@
 .admonitionblock *, .colist * {
     font-size: 1em;
 }
+.admonitionblock .content {
+    border: none;
+    border-left: 1px solid #cccccc;
+    padding: 0 20px;
+}
 .admonitionblock .icon {
     border: none;
     display: table-cell;
+    font-size: 2.5em;
+    padding: 9px 20px;
     text-align: center;
-    width: 80px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,.5);
+    width: 85px;
+}
+.admonitionblock .icon-caution::before {
+    color: #bf3400;
+    content: "\f06d";
+}
+.admonitionblock .icon-important::before {
+    color: #bf0000;
+    content: "\f06a";
+}
+.admonitionblock .icon-note::before {
+    color: #4695eb;
+    content: "\f05a";
+}
+.admonitionblock .icon-tip::before {
+    color: #f6cc40;
+    content: "\f0eb";
+    text-shadow: 1px 1px 2px #f9de85;
+}
+.admonitionblock .icon-warning::before {
+    color: #f18400;
+    content: "\f071";
 }
 .admonitionblock p:last-child {
     margin-bottom: 0
 }
 .colist td {
     border: none;
+}
+.conum[data-value] {
+    background: #cccccc;
+    border-radius: 100px;
+    color: #000000;
+    display: inline-block;
+    font-family: "Open Sans","DejaVu Sans",sans-serif;
+    font-size: .75em;
+    font-style: normal;
+    font-weight: bold;
+    height: 1.67em;
+    line-height: 1.67em;
+    text-align: center;
+    width: 1.67em;
 }
 .conum[data-value]::after {
     content:attr(data-value);
@@ -22,68 +65,16 @@
 .highlight {
     padding: 20px;
 }
-.sectionbody {
-    font-size: 0.75em;
-}
-
-
-
-
-
-
-
-/* TODO copy button */
-
-
-
-
-
-
-
-.admonitionblock .content {
-    border-bottom: none;
-    border-left: 1px solid #646769;
-    border-right: none;
-    border-top: none;
-    padding-left: 1.125em;
-    padding-right: 1.25em;
-}
-.admonitionblock > table td.icon [class^="fa icon-"] {
-    font-size: 2.5em;
-    text-shadow: 1px 1px 2px rgba(0,0,0,.5);
-}
-.admonitionblock > table td.icon .icon-caution::before {
-    color: #bf3400;
-    content: "\f06d";
-}
-.admonitionblock > table td.icon .icon-important::before {
-    color: #bf0000;
-    content: "\f06a";
-}
-.admonitionblock > table td.icon .icon-note::before {
-    color: #4695eb;
-    content: "\f05a";
-}
-.admonitionblock > table td.icon .icon-tip::before {
-    color: #f6cc40;
-    content: "\f0eb";
-    text-shadow: 1px 1px 2px #f9de85;
-}
-.admonitionblock > table td.icon .icon-warning::before {
-    color: #bf6900;
-    content: "\f071";
+.listingblock > .content {
+    position: relative;
 }
 .listingblock > .title {
     font-style: italic;
 }
-
-.conum[data-value]{display:inline-block;color:#fff!important;background:rgba(0,0,0,.8);-webkit-border-radius:100px;border-radius:100px;text-align:center;font-size:.75em;width:1.67em;height:1.67em;line-height:1.67em;font-family:"Open Sans","DejaVu Sans",sans-serif;font-style:normal;font-weight:bold}
-.conum[data-value] *{color:#fff!important}
-pre .conum[data-value]{position:relative;top:-.125em}
-b.conum *{color:inherit!important}
-.conum:not([data-value]):empty{display:none}
-
-
-.conum[data-value]{color:black !important; background:#CCC; }
-.conum[data-value] *{color:black !important}
-
+.sectionbody {
+    font-size: 0.75em;
+}
+code {
+    color: #5389D0;
+    font-size: 1em !important;
+}
