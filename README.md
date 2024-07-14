@@ -9,3 +9,11 @@ gem install jekyll bundler
 ```shell
 bundle exec jekyll serve
 ```
+
+## How to generate the CSS file from a Rouge theme
+
+```shell
+gem install rouge
+rougify help style
+rougify style thankful_eyes > thankful_eyes.css
+```

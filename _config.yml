@@ -5,7 +5,7 @@ asciidoc: {}
 asciidoctor:
   attributes:
     icons: font
-    source-highlighter: highlight.js
+    source-highlighter: rouge
 author:
   avatar: /assets/images/gwenneg.png
   bio: Senior Software Engineer @ Red Hat
@@ -26,6 +26,7 @@ defaults:
       share: true
       show_date: true
 description: Gwenneg's blog
+enable_copy_code_button: true
 encoding: utf-8
 footer:
   links:
@@ -35,8 +36,6 @@ footer:
     - label: "Linkedin"
       icon: "fab fa-fw fa-linkedin"
       url: "https://www.linkedin.com/in/gwenneg/"
-head_scripts:
-  - https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js
 locale: en-US
 minimal_mistakes_skin: default
 remote_theme: mmistakes/minimal-mistakes@4.26.2
