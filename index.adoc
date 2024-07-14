@@ -2,4 +2,4 @@
 :page-classes: wide
 :page-layout: home
 
-Welcome to my blog!
+Welcome to my new blog!

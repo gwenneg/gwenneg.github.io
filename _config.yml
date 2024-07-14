@@ -8,7 +8,7 @@ asciidoctor:
     source-highlighter: rouge
 author:
   avatar: /assets/images/gwenneg.png
-  bio: Senior Software Engineer @ Red Hat
+  bio: Software Engineer at Red Hat. Open source contributor. AI enthusiast. Judo practitioner.
   github: gwenneg
   linkedin: gwenneg
   location: Toulouse, France

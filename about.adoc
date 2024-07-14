@@ -1,2 +1,6 @@
 :page-classes: wide
 :page-layout: single
+
+Oops, this page is empty!
+
+Please come back later :)
