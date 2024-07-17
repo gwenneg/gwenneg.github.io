@@ -42,5 +42,6 @@ remote_theme: mmistakes/minimal-mistakes@4.26.2
 repository: gwenneg/gwenneg.github.io
 search: true
 show_excerpts: true
+subtitle: Java, Quarkus, AI, Kafka, databases, performances and more...
 title: Gwenneg's blog
 url: https://gwenneg.github.io
