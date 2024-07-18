@@ -1,0 +1,159 @@
+= Delaying exceptions while looping in Java
+:page-excerpt: Learn how to propagate exceptions thrown from a loop without breaking that loop.
+:revdate: 2024-07-18
+
+[NOTE]
+====
+All code snippets from this post (and more!) are available in the https://github.com/gwenneg/blog-delayed-thrower[gwenneg/blog-delayed-thrower^] repository.
+====
+
+== Introduction
+
+By default, Java will break a loop when an exception is thrown while iterating:
+
+[source,java]
+----
+public class BreakAndThrow {
+
+    public void run() {
+        for (int i = 0; i < 10; i++) { // <1>
+            if (i % 3 == 2) {
+                throw new RuntimeException("Something went wrong");
+            }
+        }
+    }
+}
+----
+<1> This loop will be broken on iteration #3 because a `RuntimeException` is thrown.
+
+It often makes sense to handle exceptions inside the loop and keep looping after an exception is thrown:
+
+[source,java]
+----
+public class HandleAndContinue {
+
+    public void run() {
+        for (int i = 0; i < 10; i++) {
+            try {
+                if (i % 3 == 2) {
+                    throw new RuntimeException("Something went wrong");
+                }
+            } catch (Exception e) { // <1>
+                // TODO Handle the exception. // <2>
+            }
+        }
+    }
+}
+----
+<1> The `for` loop is no longer broken thanks to this `catch` block.
+<2> Don't https://en.wikipedia.org/wiki/Error_hiding[swallow^] the exception!
+If you're not sure yet how to deal with it, log it.
+
+== Delaying exceptions
+
+What if you need to propagate or "bubble up" exceptions that are thrown inside a loop without breaking that loop?
+Let's see how exceptions thrown from a loop can be delayed and eventually thrown after the loop successfully completes.
+
+First, we'll need a custom exception class:
+
+[source,java]
+----
+public class DelayedException extends RuntimeException {
+
+    public DelayedException(String message) {
+        super(message);
+    }
+}
+----
+
+Then, we'll use that custom exception from a utility class:
+
+[source,java]
+----
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
+
+public class DelayedThrower {
+
+    public static void throwEventually(String exceptionMsg, Consumer<List<Exception>> exceptionsConsumer) {
+
+        Objects.requireNonNull(exceptionsConsumer, "The exceptions consumer must be not null");
+
+        List<Exception> exceptions = new ArrayList<>(); // <1>
+        exceptionsConsumer.accept(exceptions);
+
+        if (exceptions.isEmpty()) {
+            return; // <2>
+        }
+
+        DelayedException delayedException = new DelayedException(exceptionMsg); // <3>
+
+        for (Exception e : exceptions) {
+            if (e instanceof DelayedException && e.getSuppressed().length > 0) { // <4>
+                for (Throwable t : e.getSuppressed()) {
+                    delayedException.addSuppressed(t); // <5>
+                }
+            } else {
+                delayedException.addSuppressed(e); // <5>
+            }
+        }
+
+        throw delayedException;
+    }
+}
+----
+<1> Exceptions thrown from the loop will be stored into this collection until the loop completes.
+<2> If no exceptions were thrown from the loop, the method can exit immediately.
+<3> This is the exception that will eventually be thrown.
+<4> This makes it possible to use nested `DelayedThrower#throwEventually` calls.
+<5> Exceptions thrown from the loop are added as suppressed exceptions to the `DelayedException`.
+
+Now, it's time to delay exceptions!
+
+[source,java]
+----
+public class ThrowEventually {
+
+    public void run() { // <1>
+        DelayedThrower.throwEventually("Exceptions were thrown while looping", exceptions -> {
+            for (int i = 0; i < 10; i++) {
+                try {
+                    if (i % 3 == 2) {
+                        throw new RuntimeException(String.format("Something went wrong [i=%d]", i));
+                    }
+                } catch (Exception e) {
+                    exceptions.add(e);
+                }
+            }
+        });
+    }
+}
+----
+<1> When this method completes, a `DelayedException` with 3 suppressed exceptions will be thrown.
+
+If the `DelayedException` is logged, it should look like this:
+
+[source]
+----
+com.gwenneg.blog.delayed.DelayedException: Exceptions were thrown while looping
+	at com.gwenneg.blog.delayed.DelayedThrower.throwEventually(DelayedThrower.java:21)
+	at com.gwenneg.blog.delayed.ThrowEventually.run(ThrowEventually.java:6)
+	[...]
+	Suppressed: java.lang.RuntimeException: Something went wrong [i=2]
+		at com.gwenneg.blog.delayed.ThrowEventually.lambda$run$0(ThrowEventually.java:10)
+		at com.gwenneg.blog.delayed.DelayedThrower.throwEventually(DelayedThrower.java:15)
+		... 5 more
+	Suppressed: java.lang.RuntimeException: Something went wrong [i=5]
+		at com.gwenneg.blog.delayed.ThrowEventually.lambda$run$0(ThrowEventually.java:10)
+		at com.gwenneg.blog.delayed.DelayedThrower.throwEventually(DelayedThrower.java:15)
+		... 5 more
+	Suppressed: java.lang.RuntimeException: Something went wrong [i=8]
+		at com.gwenneg.blog.delayed.ThrowEventually.lambda$run$0(ThrowEventually.java:10)
+		at com.gwenneg.blog.delayed.DelayedThrower.throwEventually(DelayedThrower.java:15)
+		... 5 more
+----
+
+That's all I have for today.
+Happy looping!
