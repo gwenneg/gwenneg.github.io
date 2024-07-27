@@ -15,7 +15,7 @@ author:
   name: Gwenneg Lepage
 comments:
   giscus:
-    category_name: Announcements
+    category_name: Blog posts
     category_id: DIC_kwDOL32gyc4ChLma
     discussion_term: "og:title"
     reactions_enabled: "1"
