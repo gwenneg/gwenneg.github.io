@@ -13,6 +13,15 @@ author:
   linkedin: gwenneg
   location: Toulouse, France
   name: Gwenneg Lepage
+comments:
+  giscus:
+    category_name: Announcements
+    category_id: DIC_kwDOL32gyc4ChLma
+    discussion_term: "og:title"
+    reactions_enabled: "1"
+    repo_id: R_kgDOL32gyQ
+    theme: light
+  provider: giscus
 copyright: Gwenneg Lepage
 defaults:
   - scope:
@@ -21,6 +30,7 @@ defaults:
     values:
       author_profile: true
       classes: wide
+      comments: true
       layout: single
       related: true
       share: true
@@ -30,12 +40,12 @@ enable_copy_code_button: true
 encoding: utf-8
 footer:
   links:
-    - label: "GitHub"
-      icon: "fab fa-fw fa-github"
-      url: "https://github.com/gwenneg/"
-    - label: "Linkedin"
-      icon: "fab fa-fw fa-linkedin"
-      url: "https://www.linkedin.com/in/gwenneg/"
+    - label: GitHub
+      icon: fab fa-fw fa-github
+      url: https://github.com/gwenneg/
+    - label: Linkedin
+      icon: fab fa-fw fa-linkedin
+      url: https://www.linkedin.com/in/gwenneg/
 locale: en-US
 minimal_mistakes_skin: default
 remote_theme: mmistakes/minimal-mistakes@4.26.2
