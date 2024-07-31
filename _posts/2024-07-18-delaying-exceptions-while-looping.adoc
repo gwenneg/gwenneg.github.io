@@ -1,5 +1,6 @@
 = Delaying exceptions while looping in Java
 :page-excerpt: Learn how to propagate exceptions thrown from a loop without breaking that loop.
+:page-tags: [java, development-tip]
 :revdate: 2024-07-18
 
 [NOTE]

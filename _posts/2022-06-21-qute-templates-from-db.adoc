@@ -1,6 +1,7 @@
 = Using Qute with templates from a database
 :imagesdir: /assets/images/posts/qute-templates-from-db
 :page-excerpt: We moved our Qute templates from the file storage to a database to improve the tenants experience in a multitenant Quarkus app.
+:page-tags: [database, quarkus, qute, template]
 :revdate: 2022-06-21
 
 [NOTE]

@@ -53,5 +53,8 @@ repository: gwenneg/gwenneg.github.io
 search: true
 show_excerpts: true
 subtitle: Java, Quarkus, AI, Kafka, databases, performances and more...
+tag_archive:
+  type: liquid
+  path: /tags/
 title: Gwenneg's blog
 url: https://gwenneg.github.io

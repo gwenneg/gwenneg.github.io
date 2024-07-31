@@ -1,6 +1,6 @@
 :page-classes: wide
 :page-layout: single
 
-Oops, this page is empty!
+Sorry, this blog is new and I'm not done with this page!
 
 Please come back later :)
