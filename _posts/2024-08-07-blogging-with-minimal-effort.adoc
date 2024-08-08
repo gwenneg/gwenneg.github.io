@@ -1,0 +1,292 @@
+= Blogging on GitHub Pages with minimal effort
+:imagesdir: /assets/images/posts/blogging-with-minimal-effort
+:page-excerpt: TODO
+:page-published: false
+:revdate: 2024-08-07
+
+I recently chose to start my own dev blog with one key requirement: posting should require minimal effort.
+I spent a significant amount of time researching and testing before I was finally satisfied with the result.
+In this post, I'll save you that effort and demonstrate the fastest way to create a blog similar to mine.
+
+Are you ready to publish your first post in no time?
+Let's get started!
+
+== Initiating the blog from a template repository
+
+First, we'll create a GitHub repository for your blog with the https://github.com/gwenneg/blog-jekyll-asciidoc-template[template repository^] I created from my blog.
+That template repository depends on https://jekyllrb.com[Jekyll^], https://asciidoctor.org[Asciidoctor^], the https://mmistakes.github.io/minimal-mistakes[Minimal Mistakes^] theme and GitHub actions.
+Don't worry about the technical details yet, we'll dive into that later in this post.
+
+For now, you just need to use the https://github.com/gwenneg/blog-jekyll-asciidoc-template[template^] as shown below:
+
+image:use-template.png[How to use the template repository]
+
+You will be asked for a repository name.
+Please make sure the value you provide matches the following pattern:
+
+[source]
+----
+your_github_username.github.io <1>
+----
+<1> `your_github_username` needs to be replaced with your actual GitHub username.
+For example, my blog repository is named `gwenneg.github.io` because my GitHub username is `gwenneg`.
+
+GitHub Pages only work with public repositories, so please don't make your repo private or your blog won't be published!
+
+After your repo is created, GitHub will immediately try and fail to deploy your blog from a GitHub action:
+
+image:deployment-failure.png[Deployment failure]
+
+Don't worry about that failure.
+We'll enable the (real) deployment of your blog <<deploying,later>>.
+
+We're done initiating your blog and it already has its own repo!
+You should clone that repo before jumping to the next section.
+
+== Setting the minimal configuration before the first deployment
+
+The `_config.yml` file from your blog repo needs to be changed a bit before the blog can be deployed.
+All lines from that file that are commented with `# FIXME [...]` require your immediate attention.
+Most comments should be self-explanatory.
+You will also find in that file many links to specific sections of the Minimal Mistakes https://mmistakes.github.io/minimal-mistakes/docs/quick-start-guide/[documentation^].
+These links should help you answer any questions you may have.
+
+== [[deploying]] Deploying the blog
+
+[WARNING]
+====
+After you're done with this section, anyone visiting your blog will see your posts.
+Please make sure you're ready for that!
+Optionally, you can prevent a post from being published by adding `:page-published: false` to the post headers.
+====
+
+Until now, the deployment of your blog was intentionally disabled in the `jekyll` GitHub workflow provided by the template repo.
+It's time to change that by deleting https://github.com/gwenneg/blog-jekyll-asciidoc-template/blob/8d07da46301b34c822500cdeeed70e6046894a7c/.github/workflows/jekyll.yml#L57[this line^] in your blog repo.
+After you remove it, GitHub will immediately start deploying your blog.
+You should eventually see a successful GitHub action run similar to this one:
+
+image:deployment-success.png[Deployment success]
+
+Even though GitHub just deployed your blog from a GitHub action, it will still try (and fail) to deploy it "from a branch" as well.
+We need to let it know that the blog with only be deployed from the GitHub action.
+Here's how to do that:
+
+image:deployment-source.png[Deployment success]
+
+That's it for the minimal deployment config of your blog!
+From now on, if you don't change the `jekyll` workflow in your repo, GitHub will redeploy the blog whenever a change is pushed to the `main` branch.
+
+If you want to better understand or customize that configuration, the https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site[GitHub doc^] should contain all the answers you'll need.
+Finally, https://github.com/actions/starter-workflows/blob/main/pages/jekyll.yml[here^]'s the source of the `jekyll` workflow provided by the template repo.
+
+== Enabling comments in posts
+
+Comments are not enabled in your blog posts yet.
+To enable them, you'll need to update the `_config.yml` file in your repo:
+
+[source, yaml, title=_config.yml]
+----
+defaults:
+  - scope:
+      path: ""
+      type: posts
+    values:
+      comments: false <1>
+----
+<1> Set this value to `true` to enable comments in all posts.
+
+You will also need to select and configure a https://mmistakes.github.io/minimal-mistakes/docs/configuration/#comments[comment provider^] supported by the Minimal Mistakes theme.
+I chose `giscus` which relies on GitHub discussions to store the comments.
+It's open source, free and highly customizable.
+If you plan on using that provider, you should read https://mmistakes.github.io/minimal-mistakes/docs/configuration/#giscus-comments[this doc^] from Minimal Mistakes first.
+
+[NOTE]
+====
+https://giscus.app[giscus.app^] mentions a `<script>` tag that needs to be added at the location where the comments will appear.
+That is not required while using the Minimal Mistakes theme.
+You don't need to change any layout from the theme to enable the comments.
+====
+
+Here's how your `_config.yml` file should look like after you've added the config values provided by https://giscus.app[giscus.app^]:
+
+[source, yaml, title=_config.yml from gwenneg.github.io]
+----
+comments:
+  giscus:
+    category_name: Blog posts <1>
+    category_id: DIC_kwDOL32gyc4ChLma <2>
+    discussion_term: "og:title" <3>
+    reactions_enabled: "1" <4>
+    repo_id: R_kgDOL32gyQ <5>
+    theme: light <6>
+  provider: giscus
+----
+<1> You don't _have_ to use one of the default discussion categories provided by GitHub.
+This one is a custom category.
+<2> Replace this with the value provided by https://giscus.app[giscus.app^].
+<3> This determines the discussion title in GitHub.
+<4> This allows users to react with emojis in addition to posting comments.
+<5> Replace this with the value provided by https://giscus.app[giscus.app^].
+<6> A preview of each theme is available in https://giscus.app[giscus.app^].
+
+That's all you need to do to enable comments in your posts.
+
+== Introducing Jekyll
+
+https://jekyllrb.com[Jekyll^] is a popular static site generator with built-in support for GitHub Pages.
+You don't _have_ to use it to publish a blog with GitHub Pages.
+There are many alternatives available.
+I didn't test any of them so I won't tell you which one is the best and why.
+I'll just stick with Jekyll in this post.
+
+Something initially scared me a bit while reading about Jekyll: it requires a Ruby runtime and Ruby commands to build and test the blog locally.
+I never used Ruby before and I was reluctant at first.
+
+
+https://jekyllrb.com/docs/
+
+[source, shell]
+----
+bundle exec jekyll serve
+----
+
+
+Then I understood from experience that using Jekyll doesn't
+
+
+
+
+Now that I'm more experienced with Jekyll, I can assure you that Ruby should not slow you down
+
+
+
+
+
+
+
+
+
+Now that I'm more experienced with Jekyll, I can assure you that
+
+
+Now that I'm more experienced with Jekyll, I can assure you that you don't need to be fluent in Ruby to create a log with Jekyll.
+
+
+
+
+
+
+
+Jekyll was written in Ruby
+
+
+
+I'll be honest: I didn't test any of them so I don't know how good Jekyll is compared to its competitors.
+
+
+
+
+
+
+
+
+== Jekyll and Asciidoctor
+
+
+
+== Minimal Mistakes
+
+
+
+
+== Let's talk about Jekyll, Asciidoctor and Minimal Mistakes
+
+
+
+
+
+
+https://jekyllrb.com/
+
+https://asciidoctor.org/
+
+https://mmistakes.github.io/minimal-mistakes/
+
+
+
+
+
+
+
+
+
+
+== Blabla
+
+
+This post will not teach you how to make your dev blog successful.
+I haven't figured that out yet, I'll let you know if I ever do!
+
+== Template
+
+== Which gem should I use between github-pages and jekyll?
+
+== Custom theme
+
+
+== how to test locally
+
+
+
+
+
+TEMP
+
+https://www.josephguadagno.net/2024/04/03/migrate-to-github-actions-from-pages-legacy-worker
+
+https://pages.github.com/versions/
+
+https://michaelnordmeyer.com/benchmarking-hugo-vs-jekyll-vs-github-pages-in-2024
+
+https://medium.com/blogging-guide/creating-a-medium-publication-is-no-longer-a-free-account-feature-50a043eba3a9
+
+
+
+
+
+
+
+
+
+
+
+
+goals:
+- cheap
+- look good
+- post posts
+- admonition
+- foot mark
+- code highlighting
+- copy code
+
+
+
+
+
+- Goal: minimal effort
+- Non-goal: how to successfully blog
+- GitHub pages + Jekyll (Ruby/gems almost no knowledge required) + don't depend on github-pages
+- Custom domain
+- Markdown vs AsciiDoc
+- Picking a Jekyll theme: minimal-mistakes + how to override CSS
+- Config.yml
+- Syntax highlighting (build vs run time)
+- Copy code button
+- Admonitions
+- Foot notes
+- Writing a post
+- Generating a post image
+- Publishing a post with a GitHub action
+- Automating dependencies update with Dependabot
+- talk about medium no longer free
