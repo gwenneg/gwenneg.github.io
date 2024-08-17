@@ -31,7 +31,10 @@ your_github_username.github.io <1>
 <1> Replace `your_github_username` with your actual GitHub username.
 For example, my blog repository is named `gwenneg.github.io` because my GitHub username is `gwenneg`.
 
+[WARNING]
+====
 GitHub Pages only work with public repositories, so please don't make your repo private or your blog won't be published!
+====
 
 After your repo is created, GitHub will immediately try and fail to deploy your blog from a GitHub Action:
 
