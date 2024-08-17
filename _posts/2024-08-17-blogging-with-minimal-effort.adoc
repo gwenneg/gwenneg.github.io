@@ -357,4 +357,10 @@ https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/c
 
 == Conclusion
 
-TODO
+Setting up a blog on GitHub Pages doesn’t have to be a daunting task.
+With the right tools, templates, and a bit of guidance, you can have your blog up and running with minimal effort.
+By leveraging the built-in features of Jekyll and the Minimal Mistakes theme, you can focus on what truly matters - creating content - without getting lost in the technical details.
+
+Whether you’re new to blogging or just looking for a simpler way to manage your site, I hope this guide has shown you that it’s easier than you think to get started.
+
+Now, all that’s left is to share your thoughts with the world. Happy blogging!
