@@ -1,6 +1,6 @@
 = Blogging on GitHub Pages with minimal effort
 :imagesdir: /assets/images/posts/blogging-with-minimal-effort
-:page-excerpt: TODO
+:page-excerpt: Thinking about starting a blog but worried it’s too complicated? This guide shows you how to launch a fully functional blog on GitHub Pages with minimal effort. No complicated steps, just straightforward advice to get your blog up and running quickly and easily.
 :page-tags: [asciidoc, blogging, dependabot, giscus, github actions, github pages, jekyll, minimal mistakes, syntax highlighting]
 :revdate: 2024-08-17
 
