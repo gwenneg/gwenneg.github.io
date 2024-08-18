@@ -48,6 +48,7 @@ footer:
       url: https://www.linkedin.com/in/gwenneg/
 locale: en-US
 minimal_mistakes_skin: default
+og_image: /assets/images/og_image.png
 remote_theme: mmistakes/minimal-mistakes@4.26.2
 repository: gwenneg/gwenneg.github.io
 search: true
