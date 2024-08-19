@@ -4,6 +4,8 @@
 :page-tags: [asciidoc, blogging, dependabot, giscus, github actions, github pages, jekyll, minimal mistakes, syntax highlighting]
 :revdate: 2024-08-17
 
+image:header.png[Blogging with minimal effort]
+
 I recently chose to start my own dev blog with one key requirement: posting should require minimal effort.
 I spent a significant amount of time researching and testing before I was finally satisfied with the result.
 In this post, I'll save you that effort and demonstrate the fastest way to create a blog similar to mine.
