@@ -1,6 +1,6 @@
 = Overriding the configuration of a Quarkus app from its test code
 :page-excerpt: Increase your test coverage by overriding the configuration of your Quarkus app from its test code.
-:page-tags: [configuration, mockito, quarkus, testing]
+:page-tags: [configuration, java, mockito, quarkus, testing]
 :revdate: 2024-07-02
 
 [NOTE]
