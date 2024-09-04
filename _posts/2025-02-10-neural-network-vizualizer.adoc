@@ -1,0 +1,42 @@
+= Visualizing the activations of a neural network
+:imagesdir: /assets/images/posts/neural-network-visualizer
+:page-excerpt: TODO
+:page-tags: [go, javascript, neural network, svg]
+:revdate: 2025-02-10
+
+Earlier this year, I participated the ConsoleDot hackathon at Red Hat.
+With a fellow Red Hatter, we built a neural network from scratch in Java and implemented deep reinforcement learning to make the network play Tic-Tac-Toe.
+
+While that network is nowhere near ready for a blog post, I'd like to share today something I created for the hackathon demo: a way to visualize in real time the activations of the neurons from an HTML UI.
+
+Here's what that looks like:
+
+image:neural-network-visualizer.gif[Neural Network Visualizer]
+
+Before we dig into the details, please note that everything you'll read in this post is available as code in the https://github.com/gwenneg/blog-neural-network-visualizer[gwenneg/blog-neural-network-visualizer] repository.
+
+== How to run it
+
+== Settings
+
+== SVG
+
+== Websocket
+
+== Mock
+
+
+
+- SVG
+- websocket
+- vanilla js, no framework/lib
+- controller.js vs l'autre
+- impact des settings (visuel)
+- how to run it in go
+- SVG
+- totally dynamic / configurable
+- extra ws msg for demo purposes but not in real life
+- gorilla websocket
+- mock: random values between 0 and 1 + first layer always 1 because input
+- ws message every 200 ms from mock
+- svg: how it's built
