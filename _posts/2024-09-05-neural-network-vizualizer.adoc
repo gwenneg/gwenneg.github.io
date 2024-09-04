@@ -1,0 +1,4 @@
+= Visualizing the activations of a neural network
+:page-excerpt: TODO
+:page-tags: [go, javascript, neural network, svg]
+:revdate: 2024-09-05
