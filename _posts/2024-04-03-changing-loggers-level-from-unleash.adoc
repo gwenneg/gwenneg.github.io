@@ -1,7 +1,7 @@
 = Changing the Quarkus loggers level from Unleash
 :imagesdir: /assets/images/posts/changing-loggers-level-from-unleash
 :page-excerpt: Updating an environment variable to change a logger level can sometimes be slow. What if you could change that level immediately with Unleash?
-:page-tags: [logging, quarkus, unleash]
+:page-tags: [java, logging, quarkus, unleash]
 :revdate: 2024-04-03
 
 [NOTE]
