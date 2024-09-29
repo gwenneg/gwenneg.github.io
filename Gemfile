@@ -1,6 +1,6 @@
 source 'https://rubygems.org'
 
-gem 'jekyll', '~> 4.3.3'
+gem 'jekyll', '~> 4.3.4'
 
 # The plugins order matters! See https://github.com/asciidoctor/jekyll-asciidoc?tab=readme-ov-file#plugin-ordering
 group :jekyll_plugins do
