@@ -6,7 +6,7 @@
 
 Pausing the consumption of Kafka messages can help perform maintenance, debug issues without processing new messages or prevent overwhelming downstream systems.
 
-In a Quarkus app, that can be done by https://quarkus.io/guides/messaging#enabledisable-channels[disabling a Reactive Messaging channel^] or by https://quarkus.io/guides/kafka#kafka-bare-clients[accessing the Kafka client^] but both of these approaches come with drawbacks.
+In a Quarkus app, that can be done by https://quarkus.io/guides/messaging#enabledisable-channels[disabling a Reactive Messaging channel^] or by https://quarkus.io/guides/kafka#kafka-bare-clients[directly interacting with the Kafka client^] but both approaches have their limitations.
 In this post, I'll show you a newer and better option which is available starting Quarkus 3.13: https://smallrye.io/smallrye-reactive-messaging/4.26.0/concepts/pausable-channels/[Pausable Channels^] from SmallRye Reactive Messaging.
 
 == Enabling pausable channels
@@ -20,13 +20,13 @@ mp.messaging.incoming.my-channel.pausable=true # <1>
 mp.messaging.incoming.my-channel.initially-paused=true # <2>
 ----
 <1> The channel named `my-channel` is pausable.
-<2> By default, pausable channels are _not_ initially paused at application startup.
-Set this config property to `true` to change the default behavior.
+<2> Pausable channels are _not_ paused by default when the application starts.
+To modify this behavior, set this configuration property to `true`.
 
 == Creating a channel flow controller
 
 This post will demonstrate two different ways to interact with the `PausableChannel` API.
-First, let's create a CDI bean that will be injected in the code snippets from the sections below.
+First, let's create a CDI bean that will be injected in the code examples in the following sections.
 
 [source,java]
 ----
@@ -141,7 +141,7 @@ image::variant.png[Unleash variant]
 
 === Deserializing the channel configuration
 
-The variant payload needs to be deserialized before it's used to pause or resume a channel.
+The variant payload needs to be deserialized before it can be used to pause or resume a channel.
 Here's the data structure we'll use for that:
 
 [source,java]
@@ -155,7 +155,7 @@ public class KafkaChannelConfig {
 
 === Applying the channel configuration automatically
 
-Now that the channel configuration can be edited from Unleash and passed Quarkus, how do we apply it automatically whenever it is changed?
+Now that the channel configuration can be modified from Unleash and passed Quarkus, how do we apply it automatically whenever it is changed?
 We'll do that with the https://docs.getunleash.io/reference/sdks/java#subscriber-api[Subscriber API^] from Unleash and subscribe to the `FeatureToggleResponse` event, which is emitted when the Unleash client fetches toggles from the server.
 
 Using the Subscriber API with the https://docs.quarkiverse.io/quarkus-unleash/dev/index.html[quarkus-unleash^] extension is extremely simple.
@@ -283,8 +283,8 @@ In that payload:
 
 == A temporary limitation of the PausableChannel API
 
-The current version of the `PausableChannel` API doesn't deal with messages that have already been requested when a channel is paused.
-As a consequence, your application may consume a few messages after you've requested the pause of a channel, then be paused for good.
-The SmallRye Reactive Messaging team is currently working on an enhancement which will hopefully prevent that from happening soon.
+The current version of the `PausableChannel` API doesn't handle messages that were already requested before a channel is paused.
+As a result, your app might still process a few messages after initiating a pause, before the channel fully stops.
+The SmallRye Reactive Messaging team is actively working on an enhancement to address this issue in the near future.
 
 Thanks for reading this post. Happy pausing!
