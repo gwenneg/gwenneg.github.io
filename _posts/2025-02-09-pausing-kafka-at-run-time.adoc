@@ -155,7 +155,7 @@ public class KafkaChannelConfig {
 
 === Applying the channel configuration automatically
 
-Now that the channel configuration can be modified from Unleash and passed Quarkus, how do we apply it automatically whenever it is changed?
+Now that the channel configuration can be modified from Unleash and passed Quarkus, how do we pause or resume the channel whenever its configuration is changed?
 We'll do that with the https://docs.getunleash.io/reference/sdks/java#subscriber-api[Subscriber API^] from Unleash and subscribe to the `FeatureToggleResponse` event, which is emitted when the Unleash client fetches toggles from the server.
 
 Using the Subscriber API with the https://docs.quarkiverse.io/quarkus-unleash/dev/index.html[quarkus-unleash^] extension is extremely simple.
@@ -245,13 +245,14 @@ public class KafkaChannelManager implements UnleashSubscriber {
     }
 }
 ----
-<1> In you run this code from OpenShift, the generated pod name can be passed through the `HOST_NAME` environment variable.
+<1> If this code is run from Kubernetes or OpenShift, the generated pod name can be passed through the `HOST_NAME` environment variable and used here.
 <2> This method is invoked every time the Unleash client fetches toggles from the server.
 <3> We'll try to pause or resume channels only if the toggles changed server-side.
 <4> Be careful about the argument passed to `Unleash#getVariant`: it has to be the toggle name, not the variant name.
 <5> `variant.isEnabled()` will return `false` if the toggle is disabled in Unleash or if no variants are associated with the toggle directly or through its activation strategy.
 <6> If the method is unable to find a variant payload or if it fails to deserialize that payload for any reasons, an empty `KafkaChannelConfig` array will be returned.
-<7> This block is used to filter hosts based on a host name prefix. That's enough for our use case, but a regular expression could be used for finer filtering.
+<7> This block is used to filter hosts based on a host name prefix.
+If you need finer filtering, replacing the current wild card approach with a regular expression could be a good option.
 
 Here's an example of variant payload that could be consumed by `KafkaChannelManager`:
 
