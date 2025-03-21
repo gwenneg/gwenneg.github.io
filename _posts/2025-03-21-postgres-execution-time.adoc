@@ -58,7 +58,7 @@ PostgreSQL is not required, although using an existing installation should work.
 ====
 
 Clone the https://github.com/gwenneg/blog-postgres-execution-time[gwenneg/blog-postgres-execution-time^] repository.
-Open a terminal in either the `single-table` (no partitions) or `partitioned-table` (with partitions) folder from the repository, depending on which approach you want to test.
+Open a terminal in either the https://github.com/gwenneg/blog-postgres-execution-time/tree/main/single-table[single-table^] (no partitions) or https://github.com/gwenneg/blog-postgres-execution-time/tree/main/partitioned-table[partitioned-table^] (with partitions) folder from the repository, depending on which approach you want to test.
 Then, start a container with:
 
 [source,bash]
@@ -188,8 +188,8 @@ image:dalibo.png[Visualizing an execution plan with Dalibo]
 
 [NOTE]
 ====
-Most of this post is based on the `single-table` folder from the https://github.com/gwenneg/blog-postgres-execution-time[gwenneg/blog-postgres-execution-time^] repository.
-The `partitioned-table` folder is only used in the <<partitioning,Partitioning a table>> section below.
+Most of this post is based on the https://github.com/gwenneg/blog-postgres-execution-time/tree/main/single-table[single-table^] folder from the https://github.com/gwenneg/blog-postgres-execution-time[gwenneg/blog-postgres-execution-time^] repository.
+The https://github.com/gwenneg/blog-postgres-execution-time/tree/main/partitioned-table[partitioned-table^] folder is only used in the <<partitioning,Partitioning the `weather_report` table>> section below.
 ====
 
 Let's see what the execution plans for our two essential queries look like without indexes (except for primary keys) and using the default PostgreSQL settings.
@@ -298,7 +298,7 @@ Indexing these columns should help speed up the queries.
 
 [TIP]
 ====
-If you create a composite https://www.postgresql.org/docs/current/indexes-types.html#INDEXES-TYPES-BTREE[B-Tree index^] (the default index type in PostgreSQL) with two columns, their order matters and can impact query performance.
+If you create a composite https://www.postgresql.org/docs/current/indexes-types.html#INDEXES-TYPES-BTREE[B-Tree index^] (the default index type in PostgreSQL) with multiple columns, their order matters and can impact query performance.
 The best order depends on how your query filters, sorts or joins data.
 So how do you figure out which order works best?
 In a local environment, create different index orders and use `EXPLAIN ANALYZE` to see which one the query planner prefers.
@@ -395,7 +395,7 @@ create index ix_btree_weather_station_id_received_at_covering
 on weather_report using btree (weather_station_id, received_at desc) include (id, data);
 ----
 
-Did that make our queries run faster?
+Does that make our queries run faster?
 
 [source,sql,title=Execution plan of the "fetch" query with a covering index:]
 ----
@@ -477,7 +477,7 @@ On the other hand, BRIN indexes use a very small amount of disk space.
 ----
                       indexname                       | pg_size_pretty
 ------------------------------------------------------+----------------
- pk_weather_report                                      | 2337 MB
+ pk_weather_report                                    | 2337 MB
  ix_btree_received_at_weather_station_id_non_covering | 1159 MB
  ix_btree_weather_station_id_received_at_non_covering | 1162 MB
  ix_btree_received_at_weather_station_id_covering     | 2977 MB
@@ -514,7 +514,7 @@ order by wd.received_at desc
 offset 800 limit 100;
 ----
 
-Did that help?
+Does that help?
 
 [source,sql,title=Execution plan of the "fetch" query with subquery:]
 ----
@@ -726,7 +726,7 @@ It’s not an actual index and its size will never grow.
 
 === Performance with partitions
 
-Did partitioning improve query performance?
+Does partitioning improve query performance?
 
 [source,sql,title=Execution plan of the "fetch" query with partitions:]
 ----
