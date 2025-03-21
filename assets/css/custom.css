@@ -85,3 +85,12 @@ code {
     color: #5389D0;
     font-size: 1em !important;
 }
+details > summary {
+    cursor: pointer;
+}
+details:not([open]) {
+    margin: 0 0 1.3em;
+}
+details:not([open]) > summary:hover {
+    background-color: #eee;
+}
