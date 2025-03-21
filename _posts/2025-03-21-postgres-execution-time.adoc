@@ -10,7 +10,7 @@ In this post, we'll walk through a practical use case and explore different ways
 == The use case
 
 Imagine a centralized meteorological system that collects daily weather reports from 100 weather stations.
-Each station produces 10,000 reports every day, which are stored in the database for 30 days before they are automatically deleted.
+Each station produces 10,000 reports every day, which are stored in the database and automatically deleted after 30 days.
 
 Here's what the SQL schema looks like:
 
@@ -18,20 +18,24 @@ image:schema.svg[DB schema]
 
 The system depends on two essential SQL queries that require optimal performance:
 
-[source,sql,title="Fetching all reports from a specific weather station starting from a given date, sorted by received time in descending order and paginated:"]
+- Fetching all reports from a specific weather station starting from a given date, sorted by received time in descending order and paginated:
+
+[source,sql]
 ----
-select wd.id, wd.data, wd.received_at
-from weather_report wd join weather_station ws on wd.weather_station_id = ws.id
-where ws.name = 'weather-station-17' and wd.received_at >= '2025-03-06'
-order by wd.received_at desc
+select wr.id, wr.data, wr.received_at
+from weather_report wr join weather_station ws on wr.weather_station_id = ws.id
+where ws.name = 'weather-station-17' and wr.received_at >= '2025-03-06'
+order by wr.received_at desc
 offset 800 limit 100;
 ----
 
-[source,sql,title="Counting all reports from a specific weather station starting from a given date:"]
+- Counting all reports from a specific weather station starting from a given date:
+
+[source,sql]
 ----
-select count(wd.id)
-from weather_report wd join weather_station ws on wd.weather_station_id = ws.id
-where ws.name = 'weather-station-17' and wd.received_at >= '2025-03-06';
+select count(wr.id)
+from weather_report wr join weather_station ws on wr.weather_station_id = ws.id
+where ws.name = 'weather-station-17' and wr.received_at >= '2025-03-06';
 ----
 
 Now, let's see how we can make these queries faster!
@@ -39,7 +43,7 @@ Now, let's see how we can make these queries faster!
 == You can verify this post
 
 You're not just reading another post about PostgreSQL query performance.
-This post comes with a repository I created and used to test everything you will read below: https://github.com/gwenneg/blog-postgres-execution-time[gwenneg/blog-postgres-execution-time^].
+This post comes with a repository I created and used to test all the content discussed below: https://github.com/gwenneg/blog-postgres-execution-time[gwenneg/blog-postgres-execution-time^].
 Hopefully, this repository will make it easier for you to experiment with different optimizations using your own schema and generated data.
 
 If you're not interested in testing optimizations, feel free to skip this section and jump to the <<query-planner,next one>>.
@@ -53,12 +57,12 @@ Depending on your machine, this process can take several hours.
 
 [NOTE]
 ====
-https://docs.docker.com/compose/[Docker Compose^] is required to execute the tests on your machine.
-PostgreSQL is not required, although using an existing installation should work.
+https://docs.docker.com/compose/[Docker Compose^] is required to run the tests on your machine.
+While PostgreSQL is not required, using an existing installation should work.
 ====
 
 Clone the https://github.com/gwenneg/blog-postgres-execution-time[gwenneg/blog-postgres-execution-time^] repository.
-Open a terminal in either the https://github.com/gwenneg/blog-postgres-execution-time/tree/main/single-table[single-table^] (no partitions) or https://github.com/gwenneg/blog-postgres-execution-time/tree/main/partitioned-table[partitioned-table^] (with partitions) folder from the repository, depending on which approach you want to test.
+Open a terminal in either the https://github.com/gwenneg/blog-postgres-execution-time/tree/main/single-table[single-table^] folder (no partitions) or the https://github.com/gwenneg/blog-postgres-execution-time/tree/main/partitioned-table[partitioned-table^] folder (with partitions) from the repository, depending on which approach you want to test.
 Then, start a container with:
 
 [source,bash]
@@ -70,7 +74,7 @@ docker compose up # <1>
 .If you run into a `permission denied` error on a SELinux-enabled system, click here to learn how to fix it.
 [%collapsible]
 ====
-In a SELinux-enabled system (Fedora, CentOS, RHEL...), the SELinux policies may prevent the container from accessing the `init.sql` file:
+In a SELinux-enabled system (e.g. Fedora, CentOS, RHEL), SELinux policies may prevent the container from accessing the `init.sql` file:
 
 [source,bash]
 ----
@@ -85,7 +89,7 @@ chcon -Rt svirt_sandbox_file_t ./sql # <1>
 docker compose down --volumes # <2>
 docker compose up # <3>
 ----
-<1> This changes the SELinux security context and grants permission to the container to access all files from the `./sql` directory.
+<1> This changes the SELinux security context and grants permission to the container to access all files from the `./sql` folder.
 <2> The volumes that were created with the previous `docker compose up` execution need to be removed.
 Otherwise, the `init.sql` script will not be rerun.
 <3> The execution of this command may take several hours.
@@ -95,7 +99,7 @@ The database initialization is complete when the following message appears:
 
 [source, bash]
 ----
-[postgres] | 2025-03-16 13:28:21.316 UTC [1] LOG:  database system is ready to accept connections
+[postgres] | 2025-03-21 13:28:21.316 UTC [1] LOG:  database system is ready to accept connections
 ----
 
 You can now connect to the database.
@@ -103,7 +107,8 @@ You can now connect to the database.
 .Click here if PostgreSQL is not installed on your machine.
 [%collapsible]
 ====
-First, identify the PostgreSQL container ID using `docker ps`, then enter the container with the following command:
+First, identify the PostgreSQL container ID using `docker ps`.
+Then, enter the container with the following command:
 
 [source,bash]
 ----
@@ -151,7 +156,7 @@ These are the SQL scripts included in the repository:
 |Displays the execution plan of the "fetch" and "count" queries.
 
 |init.sql
-|DO NOT RUN MANUALLY - creates the database schema and generates data at container startup.
+|DO NOT RUN MANUALLY - Creates the database schema and generates data at container startup.
 
 |relations_size.sql
 |Displays the disk usage of the `weather_report` table and all associated indexes.
@@ -194,20 +199,20 @@ The https://github.com/gwenneg/blog-postgres-execution-time/tree/main/partitione
 
 Let's see what the execution plans for our two essential queries look like without indexes (except for primary keys) and using the default PostgreSQL settings.
 
-[source,sql,title=Explaining the "fetch" query:]
+[source,sql,title=Explaining the "fetch" query]
 ----
 explain analyze -- <1>
-select wd.id, wd.data, wd.received_at
-from weather_report wd join weather_station ws on wd.weather_station_id = ws.id
-where ws.name = 'weather-station-17' and wd.received_at >= '2025-03-06'
-order by wd.received_at desc
+select wr.id, wr.data, wr.received_at
+from weather_report wr join weather_station ws on wr.weather_station_id = ws.id
+where ws.name = 'weather-station-17' and wr.received_at >= '2025-03-06'
+order by wr.received_at desc
 offset 800 limit 100;
 ----
-<1> When the `ANALYZE` option is used, PostgreSQL will provide additional details including the actual execution times.
+<1> When the `ANALYZE` option is used, PostgreSQL provides additional details including the actual execution times.
 
 [WARNING]
 ====
-When `ANALYZE` is used, the SQL query will actually be executed and will modify the DB data.
+When `ANALYZE` is used, the SQL query is actually executed and modifies the DB data.
 If you need to `EXPLAIN ANALYZE` an `INSERT` query or any other query that modifies the data, you should wrap the `EXPLAIN` statement into a transaction and end it with a `ROLLBACK`.
 ====
 
@@ -221,13 +226,13 @@ If you need to `EXPLAIN ANALYZE` an `INSERT` query or any other query that modif
          Workers Planned: 2
          Workers Launched: 2 -- <1>
          ->  Sort  (cost=978955.06..979122.54 rows=66992 width=57) (actual time=1944.160..1944.194 rows=687 loops=3)
-               Sort Key: wd.received_at DESC
+               Sort Key: wr.received_at DESC
                Sort Method: top-N heapsort  Memory: 288kB -- <2>
                Worker 0:  Sort Method: top-N heapsort  Memory: 288kB
                Worker 1:  Sort Method: top-N heapsort  Memory: 288kB
                ->  Hash Join  (cost=2.26..975332.88 rows=66992 width=57) (actual time=873.837..1927.942 rows=53333 loops=3)
-                     Hash Cond: (wd.weather_station_id = ws.id)
-                     ->  Parallel Seq Scan on weather_report wd  (cost=0.00..957000.00 rows=6699173 width=73) (actual time=873.701..1494.414 rows=5333333 loops=3) -- <3>
+                     Hash Cond: (wr.weather_station_id = ws.id)
+                     ->  Parallel Seq Scan on weather_report wr  (cost=0.00..957000.00 rows=6699173 width=73) (actual time=873.701..1494.414 rows=5333333 loops=3) -- <3>
                            Filter: (received_at >= '2025-03-06 00:00:00'::timestamp without time zone)
                            Rows Removed by Filter: 4666667
                      ->  Hash  (cost=2.25..2.25 rows=1 width=16) (actual time=0.054..0.054 rows=1 loops=3)
@@ -242,18 +247,18 @@ If you need to `EXPLAIN ANALYZE` an `INSERT` query or any other query that modif
    Timing: Generation 1.955 ms (Deform 0.951 ms), Inlining 212.662 ms, Optimization 142.882 ms, Emission 131.128 ms, Total 488.627 ms
  Execution Time: 2068.703 ms -- <4>
 ----
-<1> The number of workers will vary depending on the available CPU cores and the PostgreSQL configuration.
+<1> The number of workers varies depending on the available CPU cores and the PostgreSQL configuration.
 <2> Sorting all matching rows using `top-N heapsort` is expensive.
-<3> A https://www.postgresql.org/docs/current/parallel-plans.html#PARALLEL-SCANS[parallel sequential scan^] on nearly 6.5 million rows is a major bottleneck.
+<3> A https://www.postgresql.org/docs/current/parallel-plans.html#PARALLEL-SCANS[parallel sequential scan^] nearly 5 million rows is a major bottleneck.
 <4> This is the execution time of the query.
 ====
 
-[source,sql,title=Explaining the "count" query:]
+[source,sql,title=Explaining the "count" query]
 ----
 explain analyze
-select count(wd.id)
-from weather_report wd join weather_station ws on wd.weather_station_id = ws.id
-where ws.name = 'weather-station-17' and wd.received_at >= '2025-03-06';
+select count(wr.id)
+from weather_report wr join weather_station ws on wr.weather_station_id = ws.id
+where ws.name = 'weather-station-17' and wr.received_at >= '2025-03-06';
 ----
 
 .Click here to see the execution plan of the "count" query.
@@ -267,8 +272,8 @@ where ws.name = 'weather-station-17' and wd.received_at >= '2025-03-06';
          Workers Launched: 2 -- <1>
          ->  Partial Aggregate  (cost=975500.36..975500.37 rows=1 width=8) (actual time=2013.942..2013.943 rows=1 loops=3)
                ->  Hash Join  (cost=2.26..975332.88 rows=66992 width=16) (actual time=888.852..2011.411 rows=53333 loops=3)
-                     Hash Cond: (wd.weather_station_id = ws.id)
-                     ->  Parallel Seq Scan on weather_report wd  (cost=0.00..957000.00 rows=6699173 width=32) (actual time=888.705..1508.554 rows=5333333 loops=3) -- <2>
+                     Hash Cond: (wr.weather_station_id = ws.id)
+                     ->  Parallel Seq Scan on weather_report wr  (cost=0.00..957000.00 rows=6699173 width=32) (actual time=888.705..1508.554 rows=5333333 loops=3) -- <2>
                            Filter: (received_at >= '2025-03-06 00:00:00'::timestamp without time zone)
                            Rows Removed by Filter: 4666667
                      ->  Hash  (cost=2.25..2.25 rows=1 width=16) (actual time=0.042..0.043 rows=1 loops=3)
@@ -283,8 +288,8 @@ where ws.name = 'weather-station-17' and wd.received_at >= '2025-03-06';
    Timing: Generation 1.781 ms (Deform 0.765 ms), Inlining 211.423 ms, Optimization 142.079 ms, Emission 162.995 ms, Total 518.278 ms
  Execution Time: 2034.732 ms -- <3>
 ----
-<1> The number of workers will vary depending on the available CPU cores and the PostgreSQL configuration.
-<2> A https://www.postgresql.org/docs/current/parallel-plans.html#PARALLEL-SCANS[parallel sequential scan^] on nearly 6.5 million rows is a major bottleneck.
+<1> The number of workers varies depending on the available CPU cores and the PostgreSQL configuration.
+<2> A https://www.postgresql.org/docs/current/parallel-plans.html#PARALLEL-SCANS[parallel sequential scan^] on nearly 5 million rows is a major bottleneck.
 <3> This is the execution time of the query.
 ====
 
@@ -293,13 +298,13 @@ But it's no surprise since the `weather_report` table contains 30 million record
 
 == Indexing the `weather_report` table
 
-Our queries both include a condition on the `received_at` (filtering) and `weather_station_id` (join) columns from the `weather_report` table, which contains 30 million records.
+Our queries both include a condition on the `received_at` and `weather_station_id` columns from the `weather_report` table, which contains 30 million records.
 Indexing these columns should help speed up the queries.
 
 [TIP]
 ====
 If you create a composite https://www.postgresql.org/docs/current/indexes-types.html#INDEXES-TYPES-BTREE[B-Tree index^] (the default index type in PostgreSQL) with multiple columns, their order matters and can impact query performance.
-The best order depends on how your query filters, sorts or joins data.
+The best column order depends on how your query filters, sorts or joins data.
 So how do you figure out which order works best?
 In a local environment, create different index orders and use `EXPLAIN ANALYZE` to see which one the query planner prefers.
 If you can't afford to create multiple indexes, a good rule of thumb is to put the column that filters out the most rows first.
@@ -337,9 +342,9 @@ If a column is mostly queried in descending order, indexing it with `DESC` helps
 ----
  Limit  (cost=69479.90..78164.82 rows=100 width=57) (actual time=67.339..70.740 rows=100 loops=1)
    ->  Nested Loop  (cost=0.56..13831166.26 rows=159255 width=57) (actual time=1.021..70.693 rows=900 loops=1)
-         Join Filter: (wd.weather_station_id = ws.id)
+         Join Filter: (wr.weather_station_id = ws.id)
          Rows Removed by Join Filter: 89092
-         ->  Index Scan using ix_btree_received_at_weather_station_id_non_covering on weather_report wd  (cost=0.56..13592281.74 rows=15925485 width=73) (actual time=0.545..51.906 rows=89992 loops=1) -- <1>
+         ->  Index Scan using ix_btree_received_at_weather_station_id_non_covering on weather_report wr  (cost=0.56..13592281.74 rows=15925485 width=73) (actual time=0.545..51.906 rows=89992 loops=1) -- <1>
                Index Cond: (received_at >= '2025-03-06 00:00:00'::timestamp without time zone)
          ->  Materialize  (cost=0.00..2.25 rows=1 width=16) (actual time=0.000..0.000 rows=1 loops=89992)
                ->  Seq Scan on weather_station ws  (cost=0.00..2.25 rows=1 width=16) (actual time=0.026..0.044 rows=1 loops=1)
@@ -357,7 +362,7 @@ If a column is mostly queried in descending order, indexing it with `DESC` helps
          ->  Seq Scan on weather_station ws  (cost=0.00..2.25 rows=1 width=16) (actual time=41.031..41.039 rows=1 loops=1)
                Filter: (name = 'weather-station-17'::text)
                Rows Removed by Filter: 99
-         ->  Index Scan using ix_btree_weather_station_id_received_at_non_covering on weather_report wd  (cost=0.56..585679.33 rows=159255 width=32) (actual time=0.023..384.034 rows=160000 loops=1) -- <1>
+         ->  Index Scan using ix_btree_weather_station_id_received_at_non_covering on weather_report wr  (cost=0.56..585679.33 rows=159255 width=32) (actual time=0.023..384.034 rows=160000 loops=1) -- <1>
                Index Cond: ((weather_station_id = ws.id) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
  Planning Time: 0.141 ms
  JIT:
@@ -401,9 +406,9 @@ Does that make our queries run faster?
 ----
  Limit  (cost=6641.57..7471.70 rows=100 width=57) (actual time=27.223..29.976 rows=100 loops=1)
    ->  Nested Loop  (cost=0.56..1336188.27 rows=160962 width=57) (actual time=0.156..29.946 rows=900 loops=1)
-         Join Filter: (wd.weather_station_id = ws.id)
+         Join Filter: (wr.weather_station_id = ws.id)
          Rows Removed by Join Filter: 89092 -- <1>
-         ->  Index Only Scan using ix_btree_received_at_weather_station_id_covering on weather_report wd  (cost=0.56..1094743.50 rows=16096168 width=73) (actual time=0.030..11.414 rows=89992 loops=1) -- <2>
+         ->  Index Only Scan using ix_btree_received_at_weather_station_id_covering on weather_report wr  (cost=0.56..1094743.50 rows=16096168 width=73) (actual time=0.030..11.414 rows=89992 loops=1) -- <2>
                Index Cond: (received_at >= '2025-03-06 00:00:00'::timestamp without time zone)
                Heap Fetches: 0
          ->  Materialize  (cost=0.00..2.25 rows=1 width=16) (actual time=0.000..0.000 rows=1 loops=89992)
@@ -424,7 +429,7 @@ We'll need to fix that later.
          ->  Seq Scan on weather_station ws  (cost=0.00..2.25 rows=1 width=16) (actual time=0.005..0.016 rows=1 loops=1)
                Filter: (name = 'weather-station-17'::text)
                Rows Removed by Filter: 99
-         ->  Index Only Scan using ix_btree_weather_station_id_received_at_covering on weather_report wd  (cost=0.56..11375.80 rows=160962 width=32) (actual time=0.012..17.698 rows=160000 loops=1) -- <1>
+         ->  Index Only Scan using ix_btree_weather_station_id_received_at_covering on weather_report wr  (cost=0.56..11375.80 rows=160962 width=32) (actual time=0.012..17.698 rows=160000 loops=1) -- <1>
                Index Cond: ((weather_station_id = ws.id) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
                Heap Fetches: 0
  Planning Time: 0.139 ms
@@ -505,12 +510,12 @@ Let's try using a subquery instead of a `LEFT JOIN`:
 [source,sql]
 ----
 explain analyze
-select wd.id, wd.data, wd.received_at
-from weather_report wd
-where wd.received_at >= '2025-03-06'
-and wd.weather_station_id =
+select wr.id, wr.data, wr.received_at
+from weather_report wr
+where wr.received_at >= '2025-03-06'
+and wr.weather_station_id =
 (select id from weather_station where name = 'weather-station-17')
-order by wd.received_at desc
+order by wr.received_at desc
 offset 800 limit 100;
 ----
 
@@ -523,7 +528,7 @@ Does that help?
      ->  Seq Scan on weather_station  (cost=0.00..2.25 rows=1 width=16) (actual time=0.008..0.014 rows=1 loops=1)
            Filter: (name = 'weather-station-17'::text)
            Rows Removed by Filter: 99
-   ->  Index Only Scan using ix_btree_weather_station_id_received_at_covering on weather_report wd  (cost=0.56..11375.80 rows=160962 width=57) (actual time=0.029..0.139 rows=900 loops=1)
+   ->  Index Only Scan using ix_btree_weather_station_id_received_at_covering on weather_report wr  (cost=0.56..11375.80 rows=160962 width=57) (actual time=0.029..0.139 rows=900 loops=1)
          Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
          Heap Fetches: 0
  Planning Time: 0.095 ms
@@ -547,9 +552,9 @@ Could a subquery help reduce its execution time as well?
 ----
 explain analyze
 select count(*)
-from weather_report wd
-where wd.received_at >= '2025-03-06'
-and wd.weather_station_id =
+from weather_report wr
+where wr.received_at >= '2025-03-06'
+and wr.weather_station_id =
 (select id from weather_station where name = 'weather-station-17');
 ----
 
@@ -564,7 +569,7 @@ and wd.weather_station_id =
          Workers Planned: 2
          Workers Launched: 2
          ->  Partial Aggregate  (cost=10604.53..10604.54 rows=1 width=8) (actual time=8.007..8.007 rows=1 loops=3)
-               ->  Parallel Index Only Scan using ix_btree_weather_station_id_received_at_covering on weather_report wd  (cost=0.56..10436.86 rows=67068 width=0) (actual time=0.038..6.107 rows=53333 loops=3)
+               ->  Parallel Index Only Scan using ix_btree_weather_station_id_received_at_covering on weather_report wr  (cost=0.56..10436.86 rows=67068 width=0) (actual time=0.038..6.107 rows=53333 loops=3)
                      Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
                      Heap Fetches: 0
  Planning Time: 0.093 ms
@@ -736,14 +741,14 @@ Does partitioning improve query performance?
            Filter: (name = 'weather-station-17'::text)
            Rows Removed by Filter: 99
    ->  Append  (cost=6.80..12198.40 rows=159984 width=57) (actual time=0.065..0.401 rows=900 loops=1)
-         ->  Index Only Scan using weather_report_2025_03_21_weather_station_id_received_at_id_d_idx on weather_report_2025_03_21 wd_16  (cost=0.42..712.40 rows=9999 width=57) (actual time=0.065..0.308 rows=900 loops=1)
+         ->  Index Only Scan using weather_report_2025_03_21_weather_station_id_received_at_id_d_idx on weather_report_2025_03_21 wr_16  (cost=0.42..712.40 rows=9999 width=57) (actual time=0.065..0.308 rows=900 loops=1)
                Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
                Heap Fetches: 0
-         ->  Index Only Scan using weather_report_2025_03_20_weather_station_id_received_at_id_d_idx on weather_report_2025_03_20 wd_15  (cost=0.42..712.40 rows=9999 width=57) (never executed)
+         ->  Index Only Scan using weather_report_2025_03_20_weather_station_id_received_at_id_d_idx on weather_report_2025_03_20 wr_15  (cost=0.42..712.40 rows=9999 width=57) (never executed)
                Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
                Heap Fetches: 0
          [...] -- <1>
-         ->  Index Only Scan using weather_report_2025_03_06_weather_station_id_received_at_id_d_idx on weather_report_2025_03_06 wd_1  (cost=0.42..712.40 rows=9999 width=57) (never executed)
+         ->  Index Only Scan using weather_report_2025_03_06_weather_station_id_received_at_id_d_idx on weather_report_2025_03_06 wr_1  (cost=0.42..712.40 rows=9999 width=57) (never executed)
                Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
                Heap Fetches: 0
  Planning Time: 0.793 ms
@@ -764,14 +769,14 @@ The omitted section involves scanning data from 13 additional partitions.
          Workers Launched: 2
          ->  Partial Aggregate  (cost=11239.64..11239.65 rows=1 width=8) (actual time=12.684..12.688 rows=1 loops=3)
                ->  Parallel Append  (cost=0.42..11073.00 rows=66656 width=0) (actual time=0.045..10.572 rows=53333 loops=3)
-                     ->  Parallel Index Only Scan using weather_report_2025_03_06_weather_station_id_received_at_id_d_idx on weather_report_2025_03_06 wd_1  (cost=0.42..671.23 rows=5882 width=0) (actual time=0.041..1.431 rows=10000 loops=1)
+                     ->  Parallel Index Only Scan using weather_report_2025_03_06_weather_station_id_received_at_id_d_idx on weather_report_2025_03_06 wr_1  (cost=0.42..671.23 rows=5882 width=0) (actual time=0.041..1.431 rows=10000 loops=1)
                            Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
                            Heap Fetches: 0
-                     ->  Parallel Index Only Scan using weather_report_2025_03_07_weather_station_id_received_at_id_d_idx on weather_report_2025_03_07 wd_2  (cost=0.42..671.23 rows=5882 width=0) (actual time=0.040..1.434 rows=10000 loops=1)
+                     ->  Parallel Index Only Scan using weather_report_2025_03_07_weather_station_id_received_at_id_d_idx on weather_report_2025_03_07 wr_2  (cost=0.42..671.23 rows=5882 width=0) (actual time=0.040..1.434 rows=10000 loops=1)
                            Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
                            Heap Fetches: 0
                      [...] -- <1>
-                     ->  Parallel Index Only Scan using weather_report_2025_03_21_weather_station_id_received_at_id_d_idx on weather_report_2025_03_21 wd_16  (cost=0.42..671.23 rows=5882 width=0) (actual time=0.052..2.213 rows=10000 loops=1)
+                     ->  Parallel Index Only Scan using weather_report_2025_03_21_weather_station_id_received_at_id_d_idx on weather_report_2025_03_21 wr_16  (cost=0.42..671.23 rows=5882 width=0) (actual time=0.052..2.213 rows=10000 loops=1)
                            Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
                            Heap Fetches: 0
  Planning Time: 0.931 ms
