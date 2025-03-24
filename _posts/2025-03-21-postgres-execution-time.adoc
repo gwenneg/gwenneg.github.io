@@ -71,7 +71,7 @@ docker compose up # <1>
 ----
 <1> The execution of this command may take several hours.
 
-.If you run into a `permission denied` error on a SELinux-enabled system, click here to learn how to fix it.
+.*Click here* if you run into a `permission denied` error on a SELinux-enabled system.
 [%collapsible]
 ====
 In a SELinux-enabled system (e.g. Fedora, CentOS, RHEL), SELinux policies may prevent the container from accessing the `init.sql` file:
@@ -104,7 +104,7 @@ The database initialization is complete when the following message appears:
 
 You can now connect to the database.
 
-.Click here if PostgreSQL is not installed on your machine.
+.*Click here* if PostgreSQL is not installed on your machine.
 [%collapsible]
 ====
 First, identify the PostgreSQL container ID using `docker ps`.
@@ -124,7 +124,7 @@ psql -h localhost -U postgres
 ----
 ====
 
-.Click here to use `psql` from an existing PostgreSQL installation.
+.*Click here* to use `psql` from an existing PostgreSQL installation.
 [%collapsible]
 ====
 Run the following command from the current folder:
@@ -216,7 +216,7 @@ When `ANALYZE` is used, the SQL query is actually executed and modifies the DB d
 If you need to `EXPLAIN ANALYZE` an `INSERT` query or any other query that modifies the data, you should wrap the `EXPLAIN` statement into a transaction and end it with a `ROLLBACK`.
 ====
 
-.Click here to see the execution plan of the "fetch" query.
+.*Click here* to see the execution plan of the "fetch" query.
 [%collapsible]
 ====
 [source,sql]
@@ -261,7 +261,7 @@ from weather_report wr join weather_station ws on wr.weather_station_id = ws.id
 where ws.name = 'weather-station-17' and wr.received_at >= '2025-03-06';
 ----
 
-.Click here to see the execution plan of the "count" query.
+.*Click here* to see the execution plan of the "count" query.
 [%collapsible]
 ====
 [source,sql]
@@ -893,10 +893,12 @@ Setting `work_mem` too high can significantly increase memory usage, especially 
 
 == Conclusion
 
-There are of course many other ways to optimize PostgreSQL performance.
+There are other ways to optimize PostgreSQL query performance.
 https://www.postgresql.org/docs/current/indexes-partial.html[Partial indexes^] and tuning https://www.postgresql.org/docs/current/wal-configuration.html[WAL settings^], for example, can be powerful tools depending on your workload.
 But this post should already give you a solid foundation with some of the most impactful techniques.
 
-Thanks for reading! Hopefully, you’ve learned a thing or two that you can apply in your own environment to make your queries faster.
+Thanks for reading!
+Hopefully, you’ve learned a thing or two that you can apply in your own environment to make your queries faster.
+If you’ve got tips or experiences to share, I’d love to hear them!
 
 Happy optimizing!
