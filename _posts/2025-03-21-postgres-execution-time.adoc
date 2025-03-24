@@ -249,7 +249,7 @@ If you need to `EXPLAIN ANALYZE` an `INSERT` query or any other query that modif
 ----
 <1> The number of workers varies depending on the available CPU cores and the PostgreSQL configuration.
 <2> Sorting all matching rows using `top-N heapsort` is expensive.
-<3> A https://www.postgresql.org/docs/current/parallel-plans.html#PARALLEL-SCANS[parallel sequential scan^] nearly 5 million rows is a major bottleneck.
+<3> A https://www.postgresql.org/docs/current/parallel-plans.html#PARALLEL-SCANS[parallel sequential scan^] on 30 million rows is a major bottleneck.
 <4> This is the execution time of the query.
 ====
 
@@ -289,7 +289,7 @@ where ws.name = 'weather-station-17' and wr.received_at >= '2025-03-06';
  Execution Time: 2034.732 ms -- <3>
 ----
 <1> The number of workers varies depending on the available CPU cores and the PostgreSQL configuration.
-<2> A https://www.postgresql.org/docs/current/parallel-plans.html#PARALLEL-SCANS[parallel sequential scan^] on nearly 5 million rows is a major bottleneck.
+<2> A https://www.postgresql.org/docs/current/parallel-plans.html#PARALLEL-SCANS[parallel sequential scan^] on 30 million rows is a major bottleneck.
 <3> This is the execution time of the query.
 ====
 
@@ -597,7 +597,7 @@ https://www.postgresql.org/docs/current/sql-vacuum.html[VACUUM^] removes dead tu
 
 === When should a table be vacuumed?
 
-Execution plans show heap fetches:
+A good indicator is the execution plan: if you see heap fetches there, it means the visibility map isn’t up to date.
 
 [source,sql]
 ----
@@ -607,9 +607,9 @@ Execution plans show heap fetches:
       Heap Fetches: 87 -- <1>
 [...]
 ----
-<1> This means PostgreSQL retrieves data from 87 heap pages, which suggests the table may need vacuuming.
+<1> PostgreSQL retrieved 87 rows from the heap, which suggests the table may need vacuuming.
 
-The number of dead tuples can be found in the `pg_stat_user_tables` table:
+You can also check the number of dead tuples by querying the https://www.postgresql.org/docs/current/monitoring-stats.html#MONITORING-PG-STAT-ALL-TABLES-VIEW[pg_stat_user_tables^] view:
 
 [source,sql]
 ----
@@ -626,10 +626,19 @@ PostgreSQL https://www.postgresql.org/docs/current/runtime-config-autovacuum.htm
 By default, autovacuum is triggered when the number of dead tuples exceeds 50 + 20% of the total number of tuples in the table.
 However, the default autovacuum settings are often not aggressive enough when data is removed daily, as in our use case.
 
-[source,sql,title="Triggering autovacuum when 2% of the tuples are dead, instead of the default 20%"]
+Autovacuum settings can be tuned for a specific table:
+
+[source,sql]
 ----
-alter table weather_report set (autovacuum_vacuum_scale_factor = 0.02); -- <1>
+alter table weather_report
+set (
+    autovacuum_vacuum_threshold = 0, -- <1>
+    autovacuum_vacuum_scale_factor = 0.02 -- <2>
+); -- <3>
 ----
+<1> Defaults to `50`.
+<2> Defaults to `0.2`.
+<3> PostgreSQL will trigger an autovacuum when 2% of the table tuples are dead, instead of the default 50 + 20%.
 
 If your data is removed in a single batch as part of a daily maintenance task, a better approach is to run a manual vacuum afterward:
 
