@@ -94,3 +94,6 @@ details:not([open]) {
 details:not([open]) > summary:hover {
     background-color: #eee;
 }
+details[open] > summary {
+    margin-bottom: 1em;
+}
