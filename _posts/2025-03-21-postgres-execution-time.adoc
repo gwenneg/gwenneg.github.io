@@ -636,8 +636,8 @@ set (
     autovacuum_vacuum_scale_factor = 0.02 -- <2>
 ); -- <3>
 ----
-<1> Defaults to `50`.
-<2> Defaults to `0.2`.
+<1> Minimum number of updated or deleted tuples needed to trigger an autovacuum. Defaults to `50`.
+<2> Fraction of the table size to add to `autovacuum_vacuum_threshold` when deciding whether to trigger an autovacuum. Defaults to `0.2`.
 <3> PostgreSQL will trigger an autovacuum when 2% of the table tuples are dead, instead of the default 50 + 20%.
 
 If your data is removed in a single batch as part of a daily maintenance task, a better approach is to run a manual vacuum afterward:
