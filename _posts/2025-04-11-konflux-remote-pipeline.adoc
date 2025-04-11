@@ -14,7 +14,7 @@ Then, every once in a while, https://github.com/konflux-ci/mintmaker[MintMaker^]
 Some of these PRs may also include migration notes and require additional work.
 
 If you're managing multiple repositories onboarded to Konflux, keeping all the pipelines up to date can require significant effort over time.
-In this post, I'll show you different ways to make pipeline maintenance easier by using remote pipelines.
+In this post, I'll show you different ways to make pipeline maintenance easier by using remote pipelines and tweaking MintMaker's settings.
 
 [WARNING]
 ====
@@ -28,10 +28,10 @@ https://tekton.dev/docs/pipelines/resolution[Remote pipelines^] from Tekton let 
 They make it easier to share and maintain pipelines across multiple repositories.
 
 Konflux is built on top of Tekton.
-Let's see how we can leverage remote pipelines in a Konflux build pipeline.
-Nothing shows it better than a good PR: https://github.com/gwenneg/blog-remote-konflux-pipeline/pull/2/files[gwenneg/blog-remote-konflux-pipeline#2^].
+Let's see how we can leverage remote pipelines in a Konflux build pipeline!
 
-If you don't have time to review the whole PR, here's the TL;DR:
+Nothing shows it better than a good PR: https://github.com/gwenneg/blog-remote-konflux-pipeline/pull/2/files[gwenneg/blog-remote-konflux-pipeline#2^].
+If you don't have time to review the whole thing, here's the TL;DR:
 
 [source,yaml]
 ----
@@ -65,7 +65,7 @@ After applying the changes shown above:
 
 [TIP]
 ====
-If you want to test a change in a remote pipeline or roll back to an earlier version if something breaks, just point to a different branch.
+If you want to test a change in a remote pipeline or roll back to an earlier version if something breaks, just point to a different Git branch or SHA.
 ====
 
 === There's a catch
@@ -77,7 +77,7 @@ The next section explains how to work around this limitation.
 
 == Depending on a specific release of remote pipelines
 
-If the repository that hosts the remote pipelines publishes releases on GitHub, you can have your repository depend on a specific release instead of always using the latest version.
+If the repository that hosts the remote pipelines publishes releases on GitHub, your repository can depend on a specific release instead of always using the latest version.
 
 [source,yaml]
 ----
