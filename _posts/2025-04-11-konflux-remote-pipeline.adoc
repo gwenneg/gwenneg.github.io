@@ -136,7 +136,7 @@ See the https://docs.renovatebot.com/configuration-options/#schedule[Renovate do
 
 === Automatically approving and merging MintMaker's PRs
 
-You can also tweak your Renovate settings to automatically approve and merge PRs opened by MintMaker:
+You can also tweak your Renovate settings to automatically approve or https://github.com/gwenneg/blog-remote-konflux-pipeline/pull/11[merge^] PRs opened by MintMaker:
 
 [source,json,title=renovate.json]
 ----
@@ -149,8 +149,8 @@ You can also tweak your Renovate settings to automatically approve and merge PRs
   }
 }
 ----
-<1> Find more details about auto-approving in the https://docs.renovatebot.com/configuration-options/#autoapprove[Renovate doc^].
-<2> Find more details about auto-merging in the https://docs.renovatebot.com/configuration-options/#automerge[Renovate doc^].
+<1> Auto-approving only works in GitLab, not in GitHub. Find more details in the https://docs.renovatebot.com/configuration-options/#autoapprove[Renovate doc^].
+<2> Auto-merging works in both GitHub and GitLab. Find more details in the https://docs.renovatebot.com/configuration-options/#automerge[Renovate doc^].
 
 == Hosting remote Konflux pipelines
 
