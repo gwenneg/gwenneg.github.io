@@ -11,7 +11,7 @@ When a component is https://konflux-ci.dev/docs/building/creating[onboarded to K
 - `${component.name}-push.yaml`
 
 Then, every once in a while, https://github.com/konflux-ci/mintmaker[MintMaker^] — a Konflux hosted instance of the https://github.com/renovatebot/renovate[Renovate bot^] — will open PRs to update the Konflux task references in the pipelines.
-Some of these PRs may also include migration notes and require additional work.
+Some of these PRs may also include https://github.com/RedHatInsights/konflux-pipelines/pull/58[migration notes^] and require additional work.
 
 If you're managing multiple repositories onboarded to Konflux, keeping all the pipelines up to date can require significant effort over time.
 In this post, I'll show you different ways to make pipeline maintenance easier by using remote pipelines and tweaking MintMaker's settings.
