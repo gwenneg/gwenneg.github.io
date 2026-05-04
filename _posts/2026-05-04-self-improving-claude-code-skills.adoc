@@ -1,0 +1,58 @@
+= Teaching Claude Code skills to improve themselves
+:page-excerpt: A simple instruction you can append to your Claude Code skills to make them suggest improvements to themselves and your project docs.
+:page-tags: [ai, claude code]
+:revdate: 2026-05-04
+
+[NOTE]
+====
+This post was written with the help of AI.
+====
+
+I've been so deep into AI tooling lately that blogging fell off the radar -- things move too fast to stop and write about them.
+But this one is such a quick win that I had to share it, even if someone else has probably had the same idea before.
+
+If you're using https://docs.anthropic.com/en/docs/claude-code/skills[Claude Code skills^], you've probably noticed that getting them right takes a few iterations.
+A skill might miss a step, produce something slightly off, or lack context that your `CLAUDE.md` should have provided.
+The usual fix is to notice the problem, remember to update the skill later, and then... forget about it.
+
+What if the skill itself could flag those issues for you?
+
+== The idea
+
+Add an optional final step to your skills that asks Claude to look back at what just happened and suggest improvements.
+Not to the code it produced -- to the skill definition, `CLAUDE.md`, or any other project documentation that would have made the execution smoother.
+
+Think of it as a mini retrospective that runs every time, at near-zero cost.
+
+== The instruction
+
+Here's what I append to my skills:
+
+[source]
+----
+## Optional: Self-Improvement Review
+
+After completing the skill, briefly reflect on your execution:
+
+- Did anything fail, feel awkward, or require unnecessary retries?
+- Were you missing context that CLAUDE.md or another project doc should have provided?
+- Is there a step in this skill that was unclear, redundant, or in the wrong order?
+
+If you identify a concrete improvement, suggest it to the user as a diff to the relevant file (skill definition, CLAUDE.md, AGENTS.md, etc.).
+Do not apply changes without approval.
+If nothing stands out, move on — do not force feedback.
+----
+
+A few things worth noting:
+
+- Asking for a *diff* prevents vague suggestions like "consider improving the error handling step." It forces something actionable.
+- The "if nothing stands out, move on" line is important. Without it, Claude will invent problems to fill the step every single time.
+- The scope covers both the skill _and_ project docs. A skill might work perfectly but still struggle because `CLAUDE.md` is missing a convention or a path.
+
+== Does it actually work?
+
+In my experience, most executions produce no suggestion -- which is the right outcome.
+But when it does flag something, it's usually a missing convention in `CLAUDE.md` or a step in the skill that assumed context Claude didn't have.
+Those are exactly the kind of issues you'd never bother tracking down yourself.
+
+It won't revolutionize your workflow, but it's a small investment that compounds over time.
