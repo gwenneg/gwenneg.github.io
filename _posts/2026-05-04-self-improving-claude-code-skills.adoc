@@ -38,8 +38,7 @@ After completing the skill, briefly reflect on your execution:
 - Were you missing context that CLAUDE.md or another project doc should have provided?
 - Is there a step in this skill that was unclear, redundant, or in the wrong order?
 
-If you identify a concrete improvement, suggest it to the user as a diff
-to the relevant file (skill definition, CLAUDE.md, AGENTS.md, etc.).
+If you identify a concrete improvement, suggest it to the user as a diff to the relevant file (skill definition, CLAUDE.md, AGENTS.md, etc.).
 Do not apply changes without approval.
 If nothing stands out, move on — do not force feedback.
 ----
