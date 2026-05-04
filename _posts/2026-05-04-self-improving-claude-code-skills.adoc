@@ -28,7 +28,7 @@ Think of it as a mini retrospective that runs every time, at near-zero cost.
 
 Here's what I append to my skills:
 
-[source]
+[source,markdown]
 ----
 ## Optional: Self-Improvement Review
 
