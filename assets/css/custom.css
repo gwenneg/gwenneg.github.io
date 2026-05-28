@@ -63,10 +63,10 @@
     display: none;
 }
 .clipboard-copy-button {
-    right: 5.5em;
+    right: 5.5em !important;
 }
 .clipboard-copy-button > span {
-    margin-left: 1.2em;
+    margin-left: 1.2em !important;
 }
 .highlight {
     padding: 20px;
