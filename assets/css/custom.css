@@ -62,6 +62,12 @@
 .conum[data-value] + b {
     display: none;
 }
+.clipboard-copy-button {
+    right: 5.5em;
+}
+.clipboard-copy-button > span {
+    margin-left: 1.2em;
+}
 .highlight {
     padding: 20px;
 }

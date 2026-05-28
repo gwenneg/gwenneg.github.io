@@ -10,7 +10,7 @@ This post was written with the help of AI.
 ====
 
 In LangChain's https://www.langchain.com/state-of-agent-engineering[2026 survey of 1,300 AI professionals^], large enterprises cited context engineering and managing context at scale as one of their biggest challenges in ensuring agent quality.
-The term is barely a year old, and most organizations are still figuring it out.
+The term "context engineering" is barely a year old, and most organizations are still figuring it out.
 
 The challenge is no longer whether AI can write code.
 It's whether it knows enough about _your_ project to write the right code.
@@ -21,7 +21,7 @@ I've been experimenting with this at Red Hat, trying different ways to structure
 In this post, I'll walk through https://github.com/gwenneg/blog-ai-friction-loop/blob/main/skills/init-context-docs/SKILL.md[a Claude Code skill^] I built to help bootstrap the documentation agents need to work effectively on a project.
 Here's a before/after on a real project:
 
-image:before-after.png[alt="Before/after comparison", width=80%]
+image:before-after.png[alt="Before/after comparison", width=90%]
 
 [NOTE]
 ====
@@ -60,7 +60,7 @@ While `AGENTS.md` and the guideline files work with any tool that supports the s
 |===
 
 .Context docs loading layers
-image:context-docs-loading-layers.svg[alt="Context docs loading layers", width=80%]
+image:context-docs-loading-layers.svg[alt="Context docs loading layers", width=85%]
 
 The unconditional layer is the most expensive in terms of context window tokens: it's loaded every session regardless of the task.
 Files loaded at Claude's discretion are the cheapest, but come with no guarantee.
@@ -174,7 +174,7 @@ It only corrects inaccuracies.
 It doesn't add new content.
 
 .Skill execution flow
-image:skill-execution-flow.svg[alt="Skill execution flow", width=80%]
+image:skill-execution-flow.svg[alt="Skill execution flow", width=85%]
 
 === Structural validation and PR
 
