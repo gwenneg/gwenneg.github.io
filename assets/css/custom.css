@@ -68,7 +68,7 @@
 .listingblock > .content {
     position: relative;
 }
-.imageblock > .title,
+.paragraph:has(> p > span.image) > .title,
 .listingblock > .title {
     font-style: italic;
 }
