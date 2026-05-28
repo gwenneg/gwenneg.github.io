@@ -60,7 +60,7 @@ While `AGENTS.md` and the guideline files work with any tool that supports the s
 |===
 
 .Context docs loading layers
-image:context-docs-loading-layers.svg[alt="Context docs loading layers", width=80%]
+image::context-docs-loading-layers.svg[alt="Context docs loading layers", width=80%]
 
 The unconditional layer is the most expensive in terms of context window tokens: it's loaded every session regardless of the task.
 Files loaded at Claude's discretion are the cheapest, but come with no guarantee.
@@ -174,7 +174,7 @@ It only corrects inaccuracies.
 It doesn't add new content.
 
 .Skill execution flow
-image:skill-execution-flow.svg[alt="Skill execution flow", width=80%]
+image::skill-execution-flow.svg[alt="Skill execution flow", width=80%]
 
 === Structural validation and PR
 
