@@ -68,6 +68,7 @@
 .listingblock > .content {
     position: relative;
 }
+.imageblock > .title,
 .listingblock > .title {
     font-style: italic;
 }
