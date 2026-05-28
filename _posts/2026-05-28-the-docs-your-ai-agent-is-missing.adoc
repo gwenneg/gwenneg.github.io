@@ -161,7 +161,7 @@ Verification is done by a separate agent. The generating agent has a blind spot:
 A fresh agent checks file references against the actual codebase, validates factual claims with WebSearch, looks for contradictions across files, and flags duplication across layers.
 It only corrects inaccuracies -- it does not add new content.
 
-image:skill-execution-flow.png[alt="Skill execution flow", width=80%]
+image:skill-execution-flow.svg[alt="Skill execution flow", width=80%]
 
 === Structural validation and PR
 
