@@ -165,7 +165,7 @@ If a file already exists, the generation agent reads the existing content first 
 
 Each generation agent reads a https://github.com/gwenneg/blog-ai-friction-loop/tree/main/skills/init-context-docs/checklists[quality checklist^] before writing anything.
 The checklists enforce constraints like the 200-line cap, the necessity test ("Would removing this cause an agent to make a mistake?"), a ban on absolute language without evidence, and the requirement that every file reference actually exists in the codebase.
-These checklists are the same ones the verification agents use, so generation and verification are measured against the same standard.
+Generation and verification agents share the same checklists, so both are measured against the same standard.
 
 A separate agent handles verification. The one that wrote the content is biased toward believing it's correct: research shows that https://arxiv.org/pdf/2404.13076[LLMs systematically favor their own output^] (Panickssery et al., 2024) and https://arxiv.org/pdf/2507.02778[fail to correct their own errors^] while successfully correcting identical ones from external sources (Tsui, 2025).
 There's a catch, though: both studies examine self-bias within a single model.
@@ -174,8 +174,7 @@ Still, a fresh agent with a clean context checks file references against the act
 It only corrects inaccuracies.
 It doesn't add new content.
 
-After all agents finish, an https://github.com/gwenneg/blog-ai-friction-loop/blob/main/skills/init-context-docs/scripts/automated-checks.sh[`automated-checks.sh`^] script runs as a final check: line-count limits per layer, the `@AGENTS.md` import in `CLAUDE.md`, the docs index in `AGENTS.md`, and secret detection across all generated files.
-If the checks find errors, the skill attempts to fix them and re-runs the checks until they pass.
+After all agents finish, an https://github.com/gwenneg/blog-ai-friction-loop/blob/main/skills/init-context-docs/scripts/automated-checks.sh[`automated-checks.sh`^] script validates the generated files (line counts, imports, docs index, secret detection) and re-runs until all checks pass.
 
 The skill finally offers to create a pull request with all the changes, so the generated docs go through the team's normal review process.
 
