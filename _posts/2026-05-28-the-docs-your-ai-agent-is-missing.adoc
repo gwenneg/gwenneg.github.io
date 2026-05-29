@@ -115,7 +115,7 @@ paths:
 The benefit is precision: a guideline only consumes tokens when the agent actually needs it.
 
 But use rules sparingly.
-Broad globs like pass:c[**/*] make a guideline effectively always-loaded. Multiple rules can stack up on the same file.
+Broad globs like `pass:c[**/*]` make a guideline effectively always-loaded. Multiple rules can stack up on the same file.
 Patterns can go stale if the codebase restructures.
 And rules are Claude Code-specific; other tools don't support them.
 
@@ -195,7 +195,8 @@ claude --plugin-dir /path/to/blog-ai-friction-loop
 ----
 
 Then type `/init-context-docs`.
-The skill will walk you through each layer, ask what to include, and let you skip anything that doesn't apply. Expect it to take a few minutes depending on the size of your codebase.
+The skill will walk you through each layer, ask what to include, and let you skip anything that doesn't apply.
+Expect it to take anywhere from a few minutes to about half an hour depending on the size of your codebase.
 
 == What's next
 
