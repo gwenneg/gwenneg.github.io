@@ -115,7 +115,7 @@ paths:
 The benefit is precision: a guideline only consumes tokens when the agent actually needs it.
 
 But use rules sparingly.
-Broad globs like `**/*` make a guideline effectively always-loaded. Multiple rules can stack up on the same file.
+Broad globs like pass:c[**/*] make a guideline effectively always-loaded. Multiple rules can stack up on the same file.
 Patterns can go stale if the codebase restructures.
 And rules are Claude Code-specific; other tools don't support them.
 
