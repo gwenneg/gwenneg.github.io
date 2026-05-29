@@ -39,7 +39,7 @@ While `AGENTS.md` and the guideline files work with any tool that supports the s
 | File | Role | Loading behavior
 
 | `docs/*-guidelines.md`
-| Domain-specific guidelines (security, testing, database, etc.). Capped at 200 lines.
+| Domain-specific guidelines (e.g., security, testing, database). Capped at 200 lines.
 | At Claude's discretion via `AGENTS.md` index
 
 | `AGENTS.md`
@@ -83,11 +83,9 @@ Every layer is a tradeoff between loading guarantee and token cost. The question
 === Guidelines
 
 This is the deepest layer: concrete rules about how _this_ codebase does things (e.g., "use `middleware/validator.ts` for input validation"), not general best practices (e.g., "always validate user input").
+Each guideline targets a specific domain (e.g., security, testing, database), determined dynamically based on what the skill finds in the repo.
 
-The skill scans the repo against a curated list of guideline domains (e.g., security, testing, database), drops any that aren't relevant, identifies additional domains not on the list (e.g., GraphQL, machine learning), and lets the user adjust the final selection before generating.
-
-Every guideline ends with a Verification section listing commands the agent can run to check its own work.
-Anthropic calls self-verification https://code.claude.com/docs/en/best-practices#give-claude-a-way-to-verify-its-work["the single highest-leverage thing you can do"^].
+Anthropic calls self-verification https://code.claude.com/docs/en/best-practices#give-claude-a-way-to-verify-its-work["the single highest-leverage thing you can do"^], so every guideline ends with a Verification section listing commands the agent can run to check its own work.
 
 === AGENTS.md
 
@@ -147,20 +145,23 @@ That would make them always-loaded, defeating the on-demand architecture the res
 A well-structured README can answer "what does this project do and how do I build it?" without the agent exploring dozens of files.
 The skill generates one that front-loads the essentials (project purpose, tech stack, build instructions) and links to `AGENTS.md` and `docs/` for the deeper layers.
 
-== How the skill generates docs
+== How the skill works
 
-=== Assessment and customization
+.Skill execution flow
+image:skill-execution-flow.svg[alt="Skill execution flow", width=85%]
 
-First, the skill checks which docs already exist and which are missing.
-At each phase, it asks whether to proceed, lets the user skip layers, and offers customization before generating anything.
+[NOTE]
+====
+At each phase, the skill asks whether to proceed, lets you skip layers, and offers customization before generating anything.
+====
 
+The skill starts by scanning the repo against the five layers described above and presents a baseline status showing what already exists and what's missing.
+It then matches the repo against a curated list of guideline domains (e.g., security, testing, database), drops any that aren't relevant, identifies additional domains not on the list (e.g., GraphQL, machine learning), and lets you adjust the final selection.
+
+Once the domains selection is final, the skill launches one generation agent per domain, each focused exclusively on its area.
+An agent that only needs to produce a testing guideline can dig deep into your test patterns, rather than spreading its attention across the entire project.
+The same pattern applies to `AGENTS.md`, `CLAUDE.md`, and `README`: each gets its own generation agent.
 If a file already exists, the generation agent reads the existing content first and incorporates it, updating with new findings while preserving what's still accurate.
-
-=== Generation and verification
-
-Rather than having a single agent generate everything, the skill launches one agent per domain, each focused exclusively on its area (security, testing, database, etc.).
-Why?
-Because an agent that only needs to produce a testing guideline can dig deep into your test patterns, rather than spreading its attention across the entire project.
 
 Each generation agent reads a https://github.com/gwenneg/blog-ai-friction-loop/tree/main/skills/init-context-docs/checklists[quality checklist^] before writing anything.
 The checklists enforce constraints like the 200-line cap, the necessity test ("Would removing this cause an agent to make a mistake?"), a ban on absolute language without evidence, and the requirement that every file reference actually exists in the codebase.
@@ -173,15 +174,10 @@ Still, a fresh agent with a clean context checks file references against the act
 It only corrects inaccuracies.
 It doesn't add new content.
 
-.Skill execution flow
-image:skill-execution-flow.svg[alt="Skill execution flow", width=85%]
-
-=== Structural validation and PR
-
 After all agents finish, an https://github.com/gwenneg/blog-ai-friction-loop/blob/main/skills/init-context-docs/scripts/automated-checks.sh[`automated-checks.sh`^] script runs as a final check: line-count limits per layer, the `@AGENTS.md` import in `CLAUDE.md`, the docs index in `AGENTS.md`, and secret detection across all generated files.
 If the checks find errors, the skill attempts to fix them and re-runs the checks until they pass.
 
-The skill then offers to create a pull request with all the changes, so the generated docs go through the team's normal review process.
+The skill finally offers to create a pull request with all the changes, so the generated docs go through the team's normal review process.
 
 == Try it yourself
 
