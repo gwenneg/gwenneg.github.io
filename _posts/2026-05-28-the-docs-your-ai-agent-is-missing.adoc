@@ -174,8 +174,7 @@ Still, a fresh agent with a clean context checks file references against the act
 It only corrects inaccuracies.
 It doesn't add new content.
 
-After all agents finish, an https://github.com/gwenneg/blog-ai-friction-loop/blob/main/skills/init-context-docs/scripts/automated-checks.sh[`automated-checks.sh`^] script runs as a final check: line-count limits per layer, the `@AGENTS.md` import in `CLAUDE.md`, the docs index in `AGENTS.md`, and secret detection across all generated files.
-If the checks find errors, the skill attempts to fix them and re-runs the checks until they pass.
+After all agents finish, an https://github.com/gwenneg/blog-ai-friction-loop/blob/main/skills/init-context-docs/scripts/automated-checks.sh[`automated-checks.sh`^] script validates the generated files (line counts, imports, docs index, secret detection) and re-runs until all checks pass.
 
 The skill finally offers to create a pull request with all the changes, so the generated docs go through the team's normal review process.
 
