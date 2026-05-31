@@ -9,10 +9,10 @@
 This post was written with the help of AI.
 ====
 
-In a link:/2026/05/28/the-docs-your-ai-agent-is-missing[previous post^], I introduced a Claude skill that generates a layered context docs system for AI-assisted development: domain-specific guidelines, a cross-cutting `AGENTS.md`, path-scoped Claude rules, and a thin `CLAUDE.md` on top.
+In a link:/2026/05/28/the-docs-your-ai-agent-is-missing[previous post^], I introduced a Claude skill that generates layered context docs for AI-assisted development: domain-specific guidelines, a cross-cutting `AGENTS.md`, path-scoped Claude rules, and a thin `CLAUDE.md` on top.
 
-These files have two problems: they go stale as the codebase evolves, and the initial generated version is never perfect.
-Some conventions only surface when the agent tries to follow the docs and stumbles: an unnecessary question, a wrong assumption, output that has to be corrected.
+These files have two problems: they go stale as the codebase evolves, and the initially generated version is never perfect.
+Some conventions only surface when the agent tries to follow the docs and stumbles: an unnecessary question, a wrong assumption, output that needs correcting.
 Each of these stumbles is a friction event: a signal that the docs failed.
 
 I wanted to automate as much of this as possible: capture friction, turn it into doc improvements, and keep developer effort to a minimum.
@@ -26,13 +26,13 @@ The loop has two phases:
 - Automated friction capture at the end of every Claude Code session
 - A manual step to turn accumulated friction events into context doc improvements
 
-image:feedback-loop.svg[alt="Feedback loop", width=90%]
+image:feedback-loop.svg[alt="Feedback loop", width=85%]
 
 === Capturing friction automatically
 
 I wired up a https://code.claude.com/docs/en/hooks-guide#how-hooks-work[`SessionEnd` hook^] that fires at the end of every Claude Code session, or when the https://code.claude.com/docs/en/commands#all-commands[`/clear` command^] is run:
 
-[source,json,title="./claude/settings.json"]
+[source,json,title=".claude/settings.json"]
 ----
 {
   "hooks": {
@@ -53,7 +53,7 @@ I wired up a https://code.claude.com/docs/en/hooks-guide#how-hooks-work[`Session
 ----
 
 When that happens, the `friction-capture.sh` script runs in a background subshell, so it doesn't block the user.
-The script receives the transcript from the ended session and sends the last 200KB of it to Claude Haiku with a prompt asking it to identify friction events.
+The script receives the transcript from the ended session and sends the last 200KB to Claude Haiku with a prompt asking it to identify friction events.
 A `flock`-based lock inside the background block prevents concurrent runs and infinite recursion.
 Haiku is cheap enough that the cost per session is negligible.
 
@@ -66,17 +66,18 @@ The prompt tells Haiku to scan the transcript for four types of events:
 - **Clarifications**: the agent asked a question it shouldn't have needed to ask
 - **Denials**: a tool call was denied, revealing a standing project policy (e.g., "we never run migrations directly")
 
-Not everything qualifies. The prompt applies two filters: would a doc rule have prevented it, and would it recur on similar tasks? If either answer is no, the event is dropped. User errors, one-off tool denials, scope changes, transient failures, and case-specific corrections are all excluded.
+Not everything qualifies. The prompt applies two filters: would a doc rule have prevented it, and would it recur on similar tasks? If either answer is no, the event is dropped. User errors, one-off denials, scope changes, transient failures, and case-specific corrections are excluded.
 For example, "we always mock the database in unit tests" is a doc gap, but "no, use the other file" is not.
 
-Each event must also name a specific target file and state the missing rule in one sentence, otherwise it is excluded.
+Each event must also name a specific target file and state the missing rule in one sentence.
+Otherwise it is excluded.
 
 ==== Friction event format
 
 For each event, the script writes a markdown file to `.claude/friction/{session-id}/`.
 These files accumulate silently across sessions.
 
-[source,markdown,title="./claude/friction/{session-id}/<slug>.md"]
+[source,markdown,title=".claude/friction/{session-id}/<slug>.md"]
 ----
 ---
 type: correction
@@ -90,15 +91,16 @@ which is the convention for all API routes in this project.
 
 [WARNING]
 ====
-`friction-capture.sh` feeds raw session transcript content into an LLM prompt without sanitization.
+`friction-capture.sh` feeds raw session transcript content into an LLM prompt without sanitization, which makes it vulnerable to prompt injection.
 Content embedded in a transcript (by a user, a third-party tool, or an external service the agent interacted with) could be crafted to manipulate what friction events get captured.
+Review friction events before running `/update-context-docs` to catch anything suspicious.
 ====
 
 === The startup reminder
 
 On the next session start, a `SessionStart` hook checks how many sessions have unprocessed friction:
 
-[source,json,title="./claude/settings.json"]
+[source,json,title=".claude/settings.json"]
 ----
 {
   "hooks": {
@@ -118,8 +120,9 @@ On the next session start, a `SessionStart` hook checks how many sessions have u
 }
 ----
 
-Once a configurable threshold is reached (default: 3 sessions), Claude Code displays a reminder:
+Once a configurable threshold is reached (default: 3 sessions), Claude Code displays a reminder at startup:
 
+[source,markdown]
 ----
 ╔══════════════════════════════════════════════════╗
 ║  🤖 BEEP BOOP IMPORTANT MESSAGE                  ║
@@ -139,11 +142,11 @@ Nothing is blocked. The developer can ignore the reminder, act on it by running 
 
 === Turning friction into doc edits
 
-When the developer chooses to run https://github.com/gwenneg/blog-ai-friction-loop[`/update-context-docs`^], the skill checks for toolkit updates, then processes the accumulated friction files. If an update changes a skill definition, Claude Code needs to be restarted before processing can continue.
+When the developer chooses to run https://github.com/gwenneg/blog-ai-friction-loop[`/update-context-docs`^], the skill checks for toolkit updates, then processes the accumulated friction files. If an update changes a skill definition, Claude Code needs to be restarted before it can continue.
 
 [WARNING]
 ====
-Toolkit updates work by https://github.com/gwenneg/blog-ai-friction-loop/blob/main/skills/setup-friction-capture/scripts/install-friction-capture.sh[downloading scripts^] directly from GitHub with no integrity verification. This is acceptable for a demo but would need checksums or signatures for production use.
+Toolkit updates work by https://github.com/gwenneg/blog-ai-friction-loop/blob/main/skills/setup-friction-capture/scripts/install-friction-capture.sh[downloading scripts^] directly from GitHub with no integrity verification. This is fine for a demo but would need checksums or signatures for production use.
 ====
 
 It groups events by target file and presents a numbered list. The developer can exclude any that look like noise.
@@ -152,24 +155,27 @@ For each remaining event, the skill assesses severity (low, medium, or high), ed
 
 The skill then creates a branch, commits, and opens a pull request with a friction metrics summary:
 
+[source,markdown]
 ----
 ## Friction Metrics
 
 ### Events
-| Type | Count |
-|---|---|
-| Corrections | 2 |
-| Clarifications | 1 |
-| Denials | 1 |
-| Mistakes | 1 |
-| **Total** | **5** |
+
+|      Type      | Count |
+|----------------|-------|
+| Corrections    |   2   |
+| Clarifications |   1   |
+| Denials        |   1   |
+| Mistakes       |   1   |
+| **Total**      | **5** |
 
 ### Outcomes
-| Result | Count |
-|---|---|
-| Docs improved | 4 |
-| Eval cases added | 1 |
-| Skipped by user | 1 |
+
+|      Result      | Count |
+|------------------|-------|
+| Docs improved    |   3   |
+| Eval cases added |   1   |
+| Skipped by user  |   1   |
 
 **Docs improved:** `docs/api-guidelines.md`, `AGENTS.md`
 ----
@@ -180,7 +186,7 @@ After processing, the friction files are deleted from `.claude/friction/`.
 
 == Try it yourself
 
-All skills and scripts described in this post and the link:/2026/05/28/the-docs-your-ai-agent-is-missing[previous one^] are available as a Claude Code plugin in the https://github.com/gwenneg/blog-ai-friction-loop[`gwenneg/blog-ai-friction-loop`^] repository.
+All skills and scripts described in this post and the link:/2026/05/28/the-docs-your-ai-agent-is-missing[previous one^] are available as a Claude Code plugin in the https://github.com/gwenneg/blog-ai-friction-loop[gwenneg/blog-ai-friction-loop^] repository.
 Clone it and start Claude Code with the plugin from your target project:
 
 [source,bash]
@@ -214,7 +220,7 @@ Developers who want to opt out can run `/disable-friction-capture`.
 
 == Configuration
 
-Set the following variables under the `env` key in `.claude/settings.json` to apply them to the whole team, or in `.claude/settings.local.json` to keep them local.
+Set the following variables under the `env` key in `.claude/settings.json` for team-wide use, or in `.claude/settings.local.json` to keep them local.
 
 [%autowidth.stretch]
 |===
@@ -231,7 +237,7 @@ Set the following variables under the `env` key in `.claude/settings.json` to ap
 
 == What's next
 
-As AI agents take on more of the coding work, keeping context docs accurate matters more than ever. Friction will always exist. The question is whether it gets captured and acted on, or silently repeated across sessions.
+As AI agents take on more of the coding work, keeping context docs accurate becomes critical. Friction will always exist. The question is whether it gets captured and fixed, or silently repeated across sessions.
 
 I'm deploying this across multiple repositories at Red Hat and collecting feedback. This is one approach to the problem, and I expect it to change as teams adapt it to their own workflows.
 
