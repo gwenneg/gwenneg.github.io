@@ -1,6 +1,8 @@
 :page-classes: wide
 :page-layout: single
 
-Sorry, this blog is new and I'm not done with this page!
+I'm Gwenneg Lepage, Principal Software Engineer at Red Hat and Team Lead of a team building cloud services for the https://console.redhat.com[Red Hat Hybrid Cloud Console].
 
-Please come back later :)
+I joined Red Hat after contributing to https://quarkus.io[Quarkus] as an external contributor.
+
+I don't blog often. I'm usually too busy coding and building. When I do write, it's because I found something worth sharing.
