@@ -208,6 +208,12 @@ Set the following variables under the `env` key in `.claude/settings.json` for t
 == Try it yourself
 
 All skills and scripts described in this post and the link:/2026/05/28/the-docs-your-ai-agent-is-missing[previous one^] are available as a Claude Code plugin in the https://github.com/gwenneg/blog-ai-friction-loop[gwenneg/blog-ai-friction-loop^] repository.
+
+[WARNING]
+====
+This repository is intended for experimentation. The toolkit periodically re-downloads and executes scripts from GitHub with no signature verification. If the repository or a release were compromised, malicious code would run on the developer's machine at the next update. Do not use it on projects with sensitive or proprietary code until artifact signing is in place.
+====
+
 Clone it and start Claude Code with the plugin from your target project:
 
 [source,bash]
