@@ -7,5 +7,5 @@ group :jekyll_plugins do
   gem 'jekyll-asciidoc', '~> 3.0.1'
   gem 'jekyll-feed', '~> 0.17.0'
   gem 'jekyll-include-cache', '~> 0.2.1'
-  gem 'jekyll-remote-theme', '~> 0.4.3'
+  gem 'jekyll-remote-theme', '~> 0.5.1'
 end
