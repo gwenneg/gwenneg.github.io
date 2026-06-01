@@ -211,7 +211,7 @@ These are _friction events_, moments where the docs failed the agent:
 
 Each one is a signal that the docs have a gap, something a concrete rule or example could have prevented.
 
-In a follow-up post, I'll introduce an experiment to capture these friction events automatically at the end of every session and turn them into targeted doc improvements.
+In a link:/2026/05/31/turn-ai-friction-into-better-docs[follow-up post^], I introduce an experiment to capture these friction events automatically at the end of every session and turn them into targeted doc improvements.
 
 If you try `/init-context-docs` on your own codebase, I'm curious what it gets right, what it misses, and what you end up changing.
 Feel free to share your experience in the comments.
