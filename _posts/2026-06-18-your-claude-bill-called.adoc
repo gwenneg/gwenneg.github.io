@@ -1,0 +1,225 @@
+= Your Claude bill called. It wants to talk.
+:page-excerpt: 10 practices to cut your Claude bill, ranked by impact. Score yourself as you read.
+:page-tags: [ai, claude code, costs, developer experience, skills, agents]
+:revdate: 2026-06-18
+:sectnums:
+
+[NOTE]
+====
+This post was written with the help of AI.
+====
+
+AI-assisted coding is great. Until you check the bill.
+
+The https://code.claude.com/docs/en/costs[Claude Code docs^] cover how to reduce costs.
+This post ranks cost reduction practices by impact and tells you which ones to do first.
+Most developers know a few.
+Fewer apply them consistently.
+The ranking weighs three things: how much a practice saves per session, how universally it applies, and how easy it is to start.
+The first seven work for everyone.
+The last three depend on your setup.
+
+Each of the 10 practices below is worth 2 points: 1 for knowing it, 1 for applying it.
+Keep score as you read.
+
+[NOTE]
+====
+This post is focused on Claude.
+Some of it may apply to other leading AI models.
+Local models can also be a valid option to lower costs, but out of scope here.
+====
+
+== What's the single biggest lever to reduce costs?
+
+*Model selection.* First point: free. Second point: when did you last reach for Haiku?
+
+Pick the right model for your task:
+
+* *Haiku*: simple and fast operations. Formatting, summarization, quick lookups. No heavy reasoning needed.
+* *Sonnet*: most coding tasks. The sweet spot between capability and cost.
+* *Opus*: complex reasoning, architectural decisions, tricky bugs.
+Reach for it when the task genuinely needs it.
+* *Fable*: top of the range, currently unavailable.
+Most capable, most expensive. Use it when nothing else will do, or when it's not your money.
+
+In interactive sessions, use `/model` to switch. In skills and agents, set it in frontmatter.
+
+[source,yaml,title="Skill or agent frontmatter"]
+----
+---
+model: sonnet
+---
+----
+
+_Dig deeper:_ https://platform.claude.com/docs/en/about-claude/pricing[Models pricing^], https://code.claude.com/docs/en/model-config[Model configuration^], https://code.claude.com/docs/en/skills#frontmatter-reference[Skill frontmatter^], https://code.claude.com/docs/en/sub-agents#supported-frontmatter-fields[Sub-agent frontmatter^]
+
+== Your agent is thinking hard on every task. Is that a problem?
+
+*Yes. Claude is writing a dissertation about your variable renaming.*
+
+Thinking tokens count as output tokens.
+The priciest kind.
+A single request can burn tens of thousands of them.
+For a complex architectural decision, worth every token.
+For "add a missing semicolon," not so much.
+
+In interactive sessions, use `/effort low` or `/effort medium` for straightforward tasks, and `/effort high` when it actually matters. In skills and agents, set it in frontmatter so nobody has to remember.
+
+[source,yaml,title="Skill or agent frontmatter"]
+----
+---
+effort: low
+---
+----
+
+_Dig deeper:_ https://platform.claude.com/docs/en/about-claude/pricing[Models pricing^], https://code.claude.com/docs/en/model-config#adjust-effort-level[Effort configuration^], https://code.claude.com/docs/en/skills#frontmatter-reference[Skill frontmatter^], https://code.claude.com/docs/en/sub-agents#supported-frontmatter-fields[Sub-agent frontmatter^]
+
+== What does 'improve the codebase' actually cost?
+
+*A lot. The fix is simpler than you think: be specific.*
+
+Claude starts by figuring out what your codebase even is.
+That means reading files until it has enough context to act.
+And every file it reads stays in context, getting re-sent with every follow-up message.
+You're paying for that exploration whether you asked for it or not.
+
+Specificity isn't just for interactive sessions.
+In skills and agents, every word in the spawn prompt loads on top of everything the agent auto-loads, from turn one.
+Vague instructions are just as expensive there.
+
+Free points. You're welcome.
+
+== Your CLAUDE.md documents your entire architecture. Smart or not?
+
+*Impressive documentation. Expensive documentation.*
+
+Everything in CLAUDE.md loads at session start and gets re-sent on every single request, whether it's relevant or not.
+That beautifully written section explaining the history of your repository pattern?
+Claude reads it before fixing a typo.
+Every.
+Single.
+Time.
+
+* Keep CLAUDE.md under 200 lines. Essentials only.
+* Move path-specific guidelines into rules. They load only when Claude works on matching files, not on every turn.
+* Move workflow instructions (PR reviews, deploy steps, migration guides) into skills.
+They load on-demand, not on every turn.
+
+_Dig deeper:_ https://code.claude.com/docs/en/memory#path-specific-rules[Path-specific rules^], https://code.claude.com/docs/en/skills[Extend Claude with skills^]
+
+== You just finished a task. What should you do before starting the next one?
+
+*`/clear`. Seriously.*
+
+Every request re-sends the full conversation history as input tokens.
+Once a task is done, that history is dead weight: old file reads, debugging logs, that long exchange where Claude went down the wrong path.
+You're carrying a suitcase full of things you don't need anymore.
+
+`/clear` drops it.
+
+== You're mid-task and the context is getting heavy. What do you do?
+
+*`/compact`, but with instructions.*
+
+Just running `/compact` summarizes the conversation, but Claude decides what to keep.
+You can do better: `/compact Focus on modified files and unresolved errors` tells Claude exactly what matters.
+You can also make it permanent in CLAUDE.md so it applies every time Claude compacts automatically.
+
+[source,markdown,title="CLAUDE.md compaction instructions"]
+----
+== Compact instructions
+
+When compacting, focus on modified files and unresolved errors.
+----
+
+_Dig deeper:_ https://code.claude.com/docs/en/context-window#when-your-context-fills-up[Compact with a focus^]
+
+== Your agent is running tests and reading logs. Where does all that output go?
+
+*In the main context, if you're not careful.*
+
+Test runners, log processors, and doc fetchers can generate a lot of output.
+If that output lands in the main session, Claude re-sends it on every subsequent turn.
+Subagents run in their own isolated context window.
+The parent session gets a summary, not the raw output.
+
+In skills and agents, structure workflows to delegate verbose operations to subagents.
+The main agent stays lean.
+In interactive sessions, Claude will usually make that call on its own, but you can always ask explicitly.
+
+_Dig deeper:_ https://code.claude.com/docs/en/sub-agents#isolate-high-volume-operations[Isolate high-volume operations^]
+
+== Scripts and hooks helping Claude process less
+
+[NOTE]
+====
+This one is situational: the savings depend on how much output you're actually cutting.
+====
+
+Pre-written scripts and hooks let you preprocess data before Claude sees it.
+Feeding Claude a raw test report when all you needed was the failures means Claude processes a lot more than necessary.
+
+A 2026 study filtered low-value output from agent trajectories and found 40-60% fewer input tokens and 21-36% lower costs, with no impact on task success. Scripts and hooks are a simpler way to act on the same idea.
+The pattern scales well for agent-heavy workflows, but for small tasks the overhead isn't worth it.
+
+_Dig deeper:_ https://arxiv.org/html/2509.23586v2[AgentDiet, FSE 2026^]
+
+== Claude is about to rewrite half your codebase. Has it seen a plan first?
+
+*It should have.*
+
+[NOTE]
+====
+This one is situational: it only pays off on complex or ambiguous tasks.
+====
+
+Skip the plan and Claude might build the wrong thing entirely.
+You pay for the wrong implementation, then pay to fix it.
+Plan mode makes Claude explore and propose an approach before touching any code.
+You review it, adjust it, then let it implement.
+
+In interactive sessions, press Shift+Tab before giving Claude a large or ambiguous task.
+In skills, bake it in: structure the definition to include an explicit planning step before execution.
+
+_Dig deeper:_ https://code.claude.com/docs/en/permission-modes#analyze-before-you-edit-with-plan-mode[Plan mode^]
+
+== Did you actually need that 1M context window?
+
+[NOTE]
+====
+This one is situational.
+====
+
+*Surprise: it's not free.*
+
+The 1M context window costs the same per token as the default.
+It just holds 5x more tokens, so sessions stay uncompacted much longer and every turn carries a heavier payload.
+Stick with 200K unless you actually need it.
+
+_Dig deeper:_ https://code.claude.com/docs/en/model-config#extended-context[Extended context^]
+
+:!sectnums:
+
+== How do you know if it's working?
+
+You can't improve what you can't measure.
+
+Run `/usage` in Claude Code to see token usage and cost for the current session.
+Watch those numbers across sessions as you apply these practices.
+The difference is visible.
+
+Running the API or tracking team usage?
+The Claude Console breaks it down by model, date, and API key.
+
+_Dig deeper:_ https://code.claude.com/docs/en/costs#using-the-/usage-command[Using the /usage command^], https://platform.claude.com/dashboard[Claude Console^]
+
+== How many points did you get?
+
+Scored 15 or above?
+Genuinely impressive.
+
+Below that?
+You're one or two practices away from making a real difference.
+Start with model selection, and go from there.
+
+Thanks for reading!
