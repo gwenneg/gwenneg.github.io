@@ -1,5 +1,5 @@
 = Claude Code plugins and the trust nobody talks about
-:page-excerpt: The official Claude Code docs describe SHA pinning as a feature but never explain why it matters. This post does, and builds a release pipeline around it.
+:page-excerpt: The official Claude Code docs describe SHA pinning as a feature but never explain why it matters. This post does, and walks through a release pipeline built to publish Claude Code plugins safely.
 :page-tags: [claude code, plugins, supply chain, security]
 :revdate: 2026-06-26
 
