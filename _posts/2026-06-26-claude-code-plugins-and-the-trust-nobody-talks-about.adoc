@@ -1,0 +1,346 @@
+= Claude Code plugins and the trust nobody talks about
+:page-excerpt: The official Claude Code docs describe SHA pinning as a feature but never explain why it matters. This post does, and builds a release pipeline around it.
+:page-tags: [claude code, plugins, supply chain, security]
+:revdate: 2026-06-26
+
+[NOTE]
+====
+This post was written with the help of AI.
+====
+
+I've been spending a lot of time with Claude Code skills, hooks and plugins lately.
+When I started building https://github.com/gwenneg/togi[togi^] (a friction-capture plugin), I quickly realized the way plugins are published comes with real supply-chain risks.
+I wanted to understand them fully and mitigate them as much as possible before shipping anything.
+Then a second plugin idea came up, and I needed a way to publish both from a single https://github.com/gwenneg/claude-ichiba[marketplace^] while keeping each plugin in its own repo.
+The multi-repo layout and the GitHub Actions plumbing for that are easy to find, but what I couldn't find anywhere was the supply-chain security reasoning behind the design, and a working pipeline built around it.
+The https://code.claude.com/docs/en/plugin-marketplaces[official docs^] describe SHA pinning as a feature but never explain _why_ you should use it or what happens if you don't.
+
+This post is what I learned: the risks, the mitigations, and the pipeline that ties it all together.
+
+== A plugin is not a library
+
+A Claude Code plugin is not a passive dependency you import.
+Installing one lets the author run code on your machine, at every session start and end, with no per-update review.
+Hooks can run shell scripts, but they can also execute pre-compiled binaries shipped in the plugin repo.
+Git preserves the executable bit, so a binary committed with `chmod +x` is ready to run the moment Claude Code fetches the plugin.
+No additional permission step on the user's machine.
+As of this writing, Claude Code shows no diff when plugin hooks change and asks for no re-approval.
+There is no plugin signing, no checksum verification, no integrity check in the install path.
+That is a lot of trust to hand someone.
+
+So the security bar for publishing a plugin is closer to running a software-update service than shipping a package.
+Every design choice in this post follows from that.
+
+== What can go wrong
+
+A plugin's `source` field in `marketplace.json` tells Claude Code where to fetch the code.
+The three options (branch, tag and SHA) carry very different risks.
+
+=== Branch
+
+A branch (e.g. `main`, or a relative `"./."` source) tracks the latest commit silently.
+Every push is an implicit release.
+One bad commit, whether from a compromised account, a force push, or a merged malicious PR, reaches every user on their next marketplace refresh.
+No gate, no review, no rollback signal.
+
+=== Tag
+
+Most people assume a tag (`v0.3.0`) is immutable.
+It's not: `git tag -f v0.3.0 <new-sha>` silently rewrites what the tag points to.
+GitHub repository rulesets can block force-moves and tag deletion, but that protection is a repo-owner setting, not a platform guarantee.
+A compromised account can disable the ruleset, re-point a tag to a different commit, and users fetching the tag get different code with no way to tell.
+
+=== SHA
+
+A SHA is content-addressed and immutable.
+It cannot be re-pointed, force-moved, or overwritten.
+Anyone can verify what they run by comparing the pinned SHA against the repository history and inspecting the tree at that commit.
+Not exactly convenient, but in a system with no signing, this is the best you can get.
+
+The https://code.claude.com/docs/en/plugin-marketplaces[official docs^] mention the `sha` field as "Optional. Full 40-character git commit SHA to pin to an exact version."
+That undersells it.
+SHA pinning is not a version-management convenience.
+It is the only thing standing between your machine and silent code substitution in a system with no signing.
+
+== Three fields, three jobs
+
+Three fields in each marketplace plugin entry control which code reaches users:
+
+[source,json]
+----
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "claude-ichiba",
+  "plugins": [
+    {
+      "name": "togi",
+      "description": "Captures AI coding friction...",
+      "version": "0.3.0", // <1>
+      "source": {
+        "source": "github",
+        "repo": "gwenneg/togi",
+        "ref": "v0.3.0", // <2>
+        "sha": "744400ba1d80c69fb9fa078862974e94fc353753" // <3>
+      }
+    }
+  ]
+}
+----
+<1> Claude Code's update cache key. This is how it decides whether a newer version exists when you run `/plugin update`.
+<2> A git ref, what `git clone --branch` receives when fetching the plugin source. Git tags conventionally carry the `v` prefix, but they do not have to.
+<3> The commit hash the ref points to: the immutable security anchor.
+
+They look redundant. They're not.
+All three must change together on every release, atomically.
+Update one without the others and something breaks: a version bump without a SHA bump ships the same code, a SHA bump without a version bump is invisible to Claude Code's update mechanism, and a ref bump without a SHA bump just changes the tag name shown in Claude Code.
+
+=== Why version stays out of plugin.json
+
+Claude Code https://code.claude.com/docs/en/plugin-marketplaces#version-resolution-and-release-channels[resolves a plugin's version^] in this order: plugin.json first, then the marketplace entry, then the source SHA.
+
+If `plugin.json` sets a version, it silently wins over the marketplace entry.
+A version bump in the marketplace alone changes nothing — Claude Code still sees the old version from `plugin.json` and skips the update.
+
+Keeping `version` only in the marketplace entry means the catalog is the single authority on what gets released.
+
+== Why split the marketplace from the plugin?
+
+A Claude Code https://code.claude.com/docs/en/plugin-marketplaces[marketplace^] is a JSON catalog that lists plugins and tells Claude Code where to fetch them.
+When the marketplace and the plugin share a repo, `source` is typically a relative path or a self-reference.
+That ties the plugin's development to the marketplace's.
+Every plugin commit is a marketplace commit.
+Every collaborator who can touch a plugin can also touch the catalog.
+
+Splitting gives you:
+
+[%autowidth.stretch]
+|===
+| Benefit | What it means
+
+| Independent lifecycles
+| A plugin repo has its own issues, PRs, and releases. The marketplace repo is a thin catalog that changes only when a plugin releases.
+
+| Multiple plugins, one catalog
+| Adding a second plugin means adding an entry to `marketplace.json`, not restructuring the repo.
+
+| Separate access control
+| Contributors to a plugin do not need write access to the catalog.
+|===
+
+== Pipeline layout
+
+I built a release pipeline for Claude Code plugins around two repos, both open source: https://github.com/gwenneg/claude-ichiba[claude-ichiba^] (Japanese for marketplace) is the catalog, and https://github.com/gwenneg/togi[togi^] is the friction-capture plugin.
+
+[source]
+----
+claude-ichiba/                     # marketplace catalog
+├── .claude-plugin/
+│   └── marketplace.json           # references plugins in other repos
+└── .github/
+    └── workflows/
+        └── update-marketplace.yml # receives release dispatches
+
+togi/                              # plugin repo
+├── .claude-plugin/
+│   └── plugin.json                # plugin manifest (no version field)
+├── skills/
+├── hooks/
+└── .github/
+    └── workflows/
+        └── create-release.yml     # tags → release → dispatch
+----
+
+== From tag to release
+
+The release flow starts with a tag push. The tag triggers a GitHub release, which dispatches to the marketplace repo, which updates version, ref, and SHA in a single commit.
+
+=== Step 1: tag and release (plugin repo)
+
+The developer pushes a tag when ready to release:
+
+[source,bash]
+----
+git tag v0.3.0
+git push origin v0.3.0
+----
+
+A workflow triggers on the tag push:
+
+[source,yaml]
+----
+name: Create Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # <1>
+    steps:
+      - id: tag
+        name: Extract tag
+        run: echo "value=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.value }}
+        run: | # <2>
+          if gh release view "$TAG" 2>/dev/null; then
+            echo "Release $TAG already exists — skipping"
+            exit 0
+          fi
+          gh release create "$TAG" --title "$TAG" --generate-notes
+
+      - name: Dispatch to marketplace
+        env:
+          ICHIBA_PAT: ${{ secrets.ICHIBA_PAT }} # <3>
+          SHA: ${{ github.sha }} # <4>
+          TAG: ${{ steps.tag.outputs.value }}
+        run: | # <5>
+          curl -fsSL -X POST \
+            -H "Authorization: token $ICHIBA_PAT" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/gwenneg/claude-ichiba/dispatches" \
+            -d "$(jq -n \
+              --arg plugin "togi" \
+              --arg tag "$TAG" \
+              --arg sha "$SHA" \
+              '{event_type: "plugin-release", client_payload: {plugin: $plugin, tag: $tag, sha: $sha}}')"
+----
+<1> Required by `gh release create`.
+<2> Creates a GitHub release if one doesn't already exist for this tag.
+<3> See <<The bridge: a fine-grained PAT>>.
+<4> Works because `git tag v0.3.0` creates a lightweight tag, where `github.sha` is the commit SHA.
+For annotated tags (`git tag -a`), `github.sha` may return the tag object SHA instead.
+Stick to lightweight tags, or resolve with `git rev-parse "$TAG^{commit}"`.
+<5> Sends a `repository_dispatch` to the marketplace repo with the plugin name, tag, and commit SHA.
+
+=== Step 2: update the catalog (marketplace repo)
+
+The marketplace repo receives the dispatch and updates `marketplace.json`:
+
+[source,yaml]
+----
+name: Update Marketplace
+
+on:
+  repository_dispatch:
+    types: [plugin-release]
+
+jobs:
+  update-marketplace:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # <1>
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7 <2>
+
+      - name: Update marketplace.json
+        env:
+          PLUGIN: ${{ github.event.client_payload.plugin }}
+          SHA: ${{ github.event.client_payload.sha }}
+          TAG: ${{ github.event.client_payload.tag }}
+        run: | # <3>
+          jq --arg p "$PLUGIN" --arg v "${TAG#v}" --arg r "$TAG" --arg s "$SHA" \
+            '(.plugins[] | select(.name == $p)) |= (.version = $v | .source.ref = $r | .source.sha = $s)' \
+            .claude-plugin/marketplace.json > /tmp/marketplace.json
+          mv /tmp/marketplace.json .claude-plugin/marketplace.json
+
+      - name: Commit
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PLUGIN: ${{ github.event.client_payload.plugin }}
+          TAG: ${{ github.event.client_payload.tag }}
+        run: | # <4>
+          FILE_SHA=$(gh api "repos/$GH_REPO/contents/.claude-plugin/marketplace.json" --jq '.sha')
+          gh api "repos/$GH_REPO/contents/.claude-plugin/marketplace.json" \
+            --method PUT \
+            -f "message=release: $PLUGIN $TAG" \
+            -f "content=$(base64 -w 0 < .claude-plugin/marketplace.json)" \
+            -f "sha=$FILE_SHA"
+----
+<1> Required to commit `marketplace.json` via the GitHub API.
+<2> Security tip: always pin GitHub Actions to a commit SHA, not a tag. The same tag-rewriting risk described earlier applies to actions too.
+<3> Finds the plugin by name in `marketplace.json` and updates version, ref, and SHA in one pass.
+<4> Commits the updated file to `main` via the GitHub API.
+Commits made this way are automatically signed by GitHub.
+
+The triple update (`version`, `source.ref`, `source.sha`) happens in one `jq` call and lands in one commit, so the catalog is never in a half-updated state.
+
+=== The bridge: a fine-grained PAT
+
+Step 1 dispatches from the plugin repo to the marketplace repo.
+The default `GITHUB_TOKEN` in a GitHub Actions workflow is scoped to its own repo, so it cannot reach another repository.
+To make the cross-repo dispatch work, you need a token with write access to the target.
+
+Create a https://github.com/settings/personal-access-tokens/new[fine-grained Personal Access Token^]:
+
+- **Repository access:** only the marketplace repo
+- **Permissions:** Contents → Read and write
+
+Store it as a repository secret (e.g. `ICHIBA_PAT`) in the plugin repo.
+
+[WARNING]
+====
+This PAT is the single most sensitive piece in the pipeline.
+Anyone who obtains it can call the dispatch API directly and push an arbitrary SHA to `marketplace.json`, bypassing the entire tag-based release flow.
+Set an expiration, rotate it regularly, monitor the audit log for unexpected dispatch events, and revoke immediately if the plugin repo's secrets are compromised.
+====
+
+== What users see
+
+With this release pipeline, nothing changes for users.
+That was the whole point.
+They still install with two commands:
+
+[source]
+----
+/plugin marketplace add gwenneg/claude-ichiba
+/plugin install togi@claude-ichiba
+----
+
+And update with:
+
+[source]
+----
+/plugin marketplace update
+/plugin update togi@claude-ichiba
+----
+
+[WARNING]
+====
+https://code.claude.com/docs/en/discover-plugins#configure-auto-updates[Auto-update is off by default^] for third-party marketplaces.
+Users pull updates only when they choose to.
+If a user or org admin enables auto-update, a compromised marketplace entry propagates without any user action at all.
+The threat model changes significantly: the refresh becomes silent, not deliberate.
+====
+
+== Adding a second plugin
+
+Adding a new plugin now requires three simple steps:
+
+1. Create the plugin repo with its own `.claude-plugin/plugin.json`, skills, hooks, etc.
+2. Add a `create-release.yml` workflow that dispatches to the marketplace repo (same template, different plugin name).
+3. Add an entry to `marketplace.json` in the marketplace repo.
+
+The marketplace workflow already matches plugins by name (`select(.name == $p)`), so it handles multiple plugins without changes.
+
+== Known gaps
+
+This setup is the best I could do with what Claude Code and GitHub offer today. It's not airtight.
+
+- **The catalog lives on `main`.** When users refresh, they pull the current `marketplace.json` from `main`. A compromised `main` branch in the marketplace repo ships a rewritten SHA on the next refresh. Branch protection, required reviews, and signed commits reduce this exposure but do not eliminate it.
+- **No update notification.** Claude Code does not tell users when a new version exists. They have to watch the plugin repo for releases and refresh manually.
+- **No platform-level signing.** Claude Code has no plugin signature verification. SHA pinning gives tamper-evidence (you can verify what you run), but not tamper-prevention (nothing stops a bad SHA from being written to the catalog if `main` is compromised). That gap closes only when Claude Code adds signing.
+
+This pipeline won't solve what Claude Code hasn't built yet.
+But it closes every gap I could find, and it's yours to fork.
+
+Plugin consumers: verify what you run.
+Authors: make that easy.
