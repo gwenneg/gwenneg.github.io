@@ -62,9 +62,9 @@ That undersells it.
 SHA pinning is not a version-management convenience.
 It is the only thing standing between your machine and silent code substitution in a system with no signing.
 
-== Three fields, three jobs
+== A marketplace plugin entry
 
-Three fields in each marketplace plugin entry control which code reaches users:
+Three fields in each marketplace plugin entry control version detection, code pinning, and release traceability:
 
 [source,json]
 ----
@@ -87,12 +87,10 @@ Three fields in each marketplace plugin entry control which code reaches users:
 }
 ----
 <1> Claude Code's update cache key. This is how it decides whether a newer version is available.
-<2> A git ref, what `git clone --branch` receives when fetching the plugin source. Git tags conventionally carry the `v` prefix, but they do not have to.
-<3> The commit hash the ref points to: the immutable security anchor.
+<2> The branch or tag Claude Code fetches the plugin from. When `sha` is also set, Claude Code pins to the SHA directly. `ref` stays in the entry as a human-readable label: which tag this SHA came from.
+<3> The immutable security anchor. A SHA cannot be re-pointed, force-moved, or overwritten.
 
-They look redundant. They're not.
-All three must change together on every release, atomically.
-Update one without the others and something breaks: a version bump without a SHA bump ships the same code, a SHA bump without a version bump is invisible to Claude Code's update mechanism, and a ref bump without a SHA bump just changes the tag name shown in Claude Code.
+Both `version` and `sha` must change together on every release: a version bump without a SHA bump ships the same code, and a SHA bump without a version bump is invisible to Claude Code's update mechanism.
 
 === Why version stays out of plugin.json
 
