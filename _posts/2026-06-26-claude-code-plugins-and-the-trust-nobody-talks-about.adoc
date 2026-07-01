@@ -363,13 +363,9 @@ The threat model changes significantly: the refresh becomes silent, not delibera
 
 == Adding a second plugin
 
-Adding a new plugin now requires three simple steps:
-
 1. Create the plugin repo with its own `.claude-plugin/plugin.json`, skills, hooks, etc.
-2. Add a `release.yml` workflow that dispatches to the marketplace repo. The template can be copied verbatim: the marketplace resolves the plugin name from the release URL, so nothing needs to be hardcoded per plugin.
+2. Copy `release.yml` verbatim: the marketplace resolves the plugin name from the release URL, so nothing is hardcoded per plugin.
 3. Add an entry to `marketplace.json` in the marketplace repo.
-
-The marketplace workflow matches plugins by `source.repo`, so it handles multiple plugins without changes.
 
 == Known gaps
 
