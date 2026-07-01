@@ -1,0 +1,166 @@
+= AI Mentor: the right AI workflow, for the right problem
+:page-excerpt: A Claude Code plugin that matches your engineering problem to the best AI workflow — ranked, verified recommendations with ready-to-paste prompts, kept up to date by CI.
+:page-tags: [ai, claude code, developer experience, plugins]
+:revdate: 2026-07-01
+
+[NOTE]
+====
+This post was written with the help of AI.
+====
+
+Most engineers know AI coding tools exist.
+Fewer know _which_ approach to use for _which_ problem.
+
+Debugging a race condition and migrating a framework are both engineering tasks, but they call for completely different AI workflows.
+The gap isn't awareness — it's matching.
+A developer debugging a flaky test doesn't think "I wonder if worktree isolation would help." They think "how do I fix this?"
+
+https://github.com/gwenneg/ai-mentor[AI Mentor^] is a Claude Code plugin that bridges that gap.
+Describe your problem, and it maps you to the best AI workflow approach — ranked, explained, and ready to try immediately.
+
+== What it does
+
+You invoke it with your problem:
+
+[source]
+----
+/ai-mentor debug a flaky test
+/ai-mentor refactor authentication across 30 files
+/ai-mentor review a large PR
+----
+
+Or just `/ai-mentor` to be guided through a short discovery flow.
+
+From there, the plugin:
+
+- Identifies which of 20 engineering goal categories best fits your problem (debugging, refactoring, migration, security, onboarding, and more)
+- Presents ranked AI workflow approaches for that goal, with an explanation of _why_ each one fits
+- Adapts the depth and number of recommendations to your experience level (getting started, comfortable, or advanced)
+- Gives you a concrete "Try it now" prompt you can paste immediately, for every recommendation
+- Covers Claude Code (primary), OpenCode, Cursor, and aider
+
+The experience level adaptation matters more than it sounds.
+A junior developer asking about debugging gets Plan Mode with a thorough walkthrough.
+A senior engineer gets the full catalog including hooks, checkpoints, and subagent-based parallel hypothesis testing.
+
+One of the 17 approaches in the catalog is _plugins_ — and when this approach fits your problem, AI Mentor doesn't stop at the abstract concept.
+It maps your goal to specific https://code.claude.com/docs/en/discover-plugins[official Claude Code plugins^] from the `claude-plugins-official` marketplace:
+
+[cols="2,2,1"]
+|===
+| Goal | Relevant official plugins | Install
+
+| Code review
+| `pr-review-toolkit` (6-agent review covering comments, tests, types, error handling), `code-review`, `github`, `greptile`
+| `/plugin install pr-review-toolkit@claude-plugins-official`
+
+| Security
+| `security-guidance` (PreToolUse hook flagging vulnerabilities on every file edit)
+| `/plugin install security-guidance@claude-plugins-official`
+
+| Greenfield / feature development
+| `feature-dev` (7-phase guided feature workflow), `frontend-design`, `plugin-dev`
+| `/plugin install feature-dev@claude-plugins-official`
+
+| Refactoring
+| `code-simplifier`, `serena` (semantic code analysis)
+| `/plugin install code-simplifier@claude-plugins-official`
+
+| Migration
+| `code-modernization` (COBOL, legacy Java/C++, monoliths)
+| `/plugin install code-modernization@claude-plugins-official`
+
+| CI/CD automation
+| `hookify` (turns conversation patterns into hooks), `gitlab`, `github`
+| `/plugin install hookify@claude-plugins-official`
+
+| Code understanding
+| `context7` (pulls version-specific library docs on demand), `serena`
+| `/plugin install context7@claude-plugins-official`
+
+| Onboarding
+| `claude-code-setup` (analyzes codebase, recommends automations), `explanatory-output-style`
+| `/plugin install claude-code-setup@claude-plugins-official`
+|===
+
+The full `claude-plugins-official` marketplace has 37 Anthropic-built plugins and 15 partner-maintained integrations (GitHub, GitLab, Linear, Figma, Playwright, Terraform, and more).
+AI Mentor is aware of all of them and will recommend the right ones for your problem — including the command to install them.
+
+== Why not just ask the AI?
+
+The obvious question: why maintain a curated catalog when you could just ask Claude "what AI approach should I use to debug this?"
+
+The short answer is that asking the AI at runtime is fine _on average_ but unreliable in the ways that matter most.
+
+=== Rankings are tested, not generated on the fly
+
+Significant effort went into getting approach ordering right.
+Worktree isolation was initially ranked #1 for debugging — it's impressive but niche.
+Most debugging sessions don't start with "is my local environment dirty?" They start with "what's wrong?"
+Plan Mode is the universally applicable first step and belongs at #1.
+
+These decisions were reviewed, debated, and validated.
+A model generating rankings dynamically would produce plausible but untested orderings every time, sometimes putting a niche technique first because it's more "interesting."
+
+=== "Try it now" prompts were verified
+
+Every prompt in the catalog was written and then systematically checked against official documentation.
+When all 17 approach files were audited, errors were found in 15 of them:
+
+[cols="1,2"]
+|===
+| Error type | Examples
+
+| Fabricated features | `$CLAUDE_FILE_PATH` environment variable (doesn't exist), `claude plugin search` command (doesn't exist)
+| Wrong commands | `claude plugin add` → `claude plugin install`, `/undo` → `/rewind`
+| Wrong file formats | Custom agent tools listed as YAML array → should be a comma-separated string
+| Wrong file paths | MCP config at `~/.claude/mcp.json` → actually `~/.claude.json`
+| Incorrect behavior | "Checkpoints don't persist across sessions" → they do (auto-cleaned after 30 days)
+|===
+
+Every one of these errors was stated confidently and would be invisible to a developer who doesn't already know the correct answer.
+This is why "just ask the AI" isn't good enough for reference material.
+
+=== Coverage is deliberate, not recalled
+
+The catalog maps 20 goal categories to 17 workflow approaches across 100+ pairings.
+Without the static files, a model surfaces whatever approaches come to mind — the obvious ones (plan mode, autonomous loops) while missing less intuitive but often better fits: hooks for tight debugging feedback loops, LSP self-correction for code understanding, checkpoints for fearless refactoring.
+
+The curated catalog is a quality floor.
+The model only needs to do lighter work on top — adapting descriptions to the user's specific problem.
+
+=== Beyond the catalog
+
+Static content solves accuracy but creates a ceiling.
+For cases the catalog doesn't cover, the plugin includes a "Beyond the Catalog" section: after presenting vetted recommendations, it considers whether additional approaches exist that aren't in the static files.
+These are clearly labeled as unvetted, never include "Try it now" prompts (syntax not verified), and the user is offered a web-search pass before trying them.
+
+== Install
+
+The plugin is distributed through a https://code.claude.com/docs/en/plugin-marketplaces[Claude Code plugin marketplace^] — no cloning or file editing required.
+In Claude Code:
+
+[source]
+----
+/plugin marketplace add gwenneg/claude-ichiba
+/plugin install ai-mentor@claude-ichiba
+/reload-plugins
+----
+
+== Kept up to date by CI
+
+AI tools evolve fast.
+Every time a new release of AI Mentor is tagged, a CI workflow publishes it automatically to the plugin marketplace.
+You don't need to track the repository — just update your plugin when a new release appears:
+
+[source]
+----
+/plugin marketplace update claude-ichiba
+/reload-plugins
+----
+
+Releases are pinned to an immutable commit SHA so any in-progress changes on `main` never reach you.
+
+On the content side, a contributor-only maintenance skill (`/ai-mentor-update`) periodically re-verifies every claim in the approach files against official sources, and any changes it identifies go through the same release pipeline before reaching users.
+
+The result is a catalog that starts accurate and stays accurate, without requiring you to do anything.
