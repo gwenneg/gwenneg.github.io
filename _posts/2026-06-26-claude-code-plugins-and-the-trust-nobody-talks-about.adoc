@@ -336,22 +336,23 @@ That said: set an expiration, rotate it regularly, monitor the audit log for une
 
 == What users see
 
-With this release pipeline, nothing changes for users.
-That was the whole point.
-They still install with two commands:
+None of the pipeline complexity surfaces to users.
+Their side stays simple.
+Install with:
 
 [source]
 ----
 /plugin marketplace add gwenneg/claude-ichiba
 /plugin install togi@claude-ichiba
+/reload-plugins
 ----
 
 And update with:
 
 [source]
 ----
-/plugin marketplace update
-/plugin update togi@claude-ichiba
+/plugin marketplace update claude-ichiba
+/reload-plugins
 ----
 
 [WARNING]
