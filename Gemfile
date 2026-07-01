@@ -1,6 +1,7 @@
 source 'https://rubygems.org'
 
 gem 'jekyll', '~> 4.4.1'
+gem 'logger'
 
 # The plugins order matters! See https://github.com/asciidoctor/jekyll-asciidoc?tab=readme-ov-file#plugin-ordering
 group :jekyll_plugins do
