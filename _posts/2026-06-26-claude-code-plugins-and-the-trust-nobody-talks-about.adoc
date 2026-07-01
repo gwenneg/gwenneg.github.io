@@ -86,7 +86,7 @@ Three fields in each marketplace plugin entry control which code reaches users:
   ]
 }
 ----
-<1> Claude Code's update cache key. This is how it decides whether a newer version exists when you run `/plugin update`.
+<1> Claude Code's update cache key. This is how it decides whether a newer version is available.
 <2> A git ref, what `git clone --branch` receives when fetching the plugin source. Git tags conventionally carry the `v` prefix, but they do not have to.
 <3> The commit hash the ref points to: the immutable security anchor.
 
