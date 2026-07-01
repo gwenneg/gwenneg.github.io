@@ -42,6 +42,11 @@ Reach for it when the task genuinely needs it.
 * *Fable*: top of the range, currently unavailable.
 Most capable, most expensive. Use it when nothing else will do, or when it's not your money.
 
+[NOTE]
+====
+These suggestions are general guidance. There are many exceptions, and the landscape shifts quickly with every new model release. What matters most is the habit: always weigh capability against cost for the task at hand. That calculation also depends on whether you pay per token through the API or work within a subscription quota.
+====
+
 In interactive sessions, use `/model` to switch. In skills and agents, set it in frontmatter.
 
 [source,yaml,title="Skill or agent frontmatter"]
