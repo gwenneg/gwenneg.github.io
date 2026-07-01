@@ -94,7 +94,7 @@ Both `version` and `sha` must change together on every release: a version bump w
 
 === Why version stays out of plugin.json
 
-Claude Code https://code.claude.com/docs/en/plugin-marketplaces#version-resolution-and-release-channels[resolves a plugin's version^] in this order: plugin.json first, then the marketplace entry, then the source SHA.
+Claude Code https://code.claude.com/docs/en/plugin-marketplaces#version-resolution-and-release-channels[resolves a plugin's version^] in this order: `plugin.json` first, then the marketplace entry, then the source SHA.
 
 If `plugin.json` sets a version, it silently wins over the marketplace entry.
 A version bump in the marketplace alone changes nothing: Claude Code still sees the old version from `plugin.json` and skips the update.
