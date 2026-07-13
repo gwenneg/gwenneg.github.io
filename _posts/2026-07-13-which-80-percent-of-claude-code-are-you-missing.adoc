@@ -1,0 +1,233 @@
+= Which 80% of Claude Code are you missing?
+:page-excerpt: AI Mentor is a Claude Code plugin that finds the capabilities you don't know exist and teaches them one at a time, grounded in your real repo.
+:page-tags: [ai, claude code, developer experience, plugins]
+:revdate: 2026-07-13
+
+[NOTE]
+====
+This post was written with the help of AI.
+====
+
+You're probably using 20% of Claude Code, and you have no way of knowing which 80% you're missing.
+
+Did you know the `/rewind` menu can bring back the conversation you just wiped with `/clear`?
+That `/usage` can tell you which plugin or MCP server is eating your rate limit?
+That `/goal` keeps Claude working unattended, across as many turns as it takes, until a condition you stated holds?
+If any of those are news to you, that's your 80%.
+And none of it is hidden: everything is in Claude Code's docs, and something new lands nearly every week.
+The problem is that you cannot search for a capability you don't know exists.
+
+Even if you know a Claude Code feature exists, nothing reminds you of it when a problem shows up.
+A developer whose test fails one time in five doesn't wonder whether an autonomous loop with a machine-checkable finish line would help.
+They wonder how to fix the flaky test, and they retry the pipeline for another week.
+
+I built https://github.com/gwenneg/ai-mentor[AI Mentor^] to close that gap.
+It's a Claude Code plugin that reads your setup, your session and your repo, computes the difference between what Claude Code offers and what you actually use, and teaches you the most valuable thing you're missing.
+
+== What a session with AI Mentor looks like
+
+Say a CVE just dropped against a library you depend on:
+
+[source]
+----
+/ai-mentor:mentor Our scanner flagged jackson-databind for CVE-2022-42003. Do we need the upgrade and what breaks if we bump it?
+----
+
+=== Grounded in your repo
+
+Before recommending anything, the mentor reads your dependency file and finds the exact version you're pinned to.
+The answer names that version, not a generic "check whether you are affected".
+
+=== One move, with the why
+
+The mentor recommends a single approach, with the reasoning behind it, instead of a list of options to compare.
+Here the move is deep research, with a research question the mentor drafts from the repo: affected version ranges, what an attacker actually needs, and the breaking-change history between your exact pin and the fixed release.
+
+A routine CVE doesn't need this: when the advisory is unambiguous and the fix is a patch bump, you read it and bump.
+The move exists for the other kind, where the severity is disputed, the vulnerable code path may not apply to your usage at all, and the real answer is scattered across changelogs, migration guides and issue threads.
+That's the part of CVE triage that actually takes the time, and it's multi-source, contested-information work: the deep research harness runs parallel searches and adversarially cross-checks claims against each other before citing them.
+Most engineers don't know this harness exists and assume AI research means a single web search.
+
+=== One surprise
+
+Every answer also carries one capability you probably didn't know about, picked for you based on what the mentor knows you haven't seen yet.
+Here it might be worktree isolation: try the upgrade in a disposable copy of your repo and get a real damage report, instead of guessing the impact from the changelog.
+
+=== The rest behind "more"
+
+Say "more" and the full ranked list appears, and for this problem it covers the rest of the CVE's lifecycle rather than five variations of one idea: plan mode to map which of your modules actually depend on the vulnerable package before you commit to anything, MCP context to wire your scanner's findings straight into the conversation.
+That wiring is more available than most people realize: GitHub's official MCP server exposes your Dependabot alerts, the open-source scanners Trivy and OSV-Scanner ship MCP servers of their own, and every commercial scanner I checked publishes one too.
+
+The mentor also saves you a wrong turn: ask it how to detect CVEs in your dependencies and it won't point you at `/security-review`, whose analysis deliberately excludes exactly those findings.
+No built-in Claude Code feature scans dependencies against an advisory database, and the mentor tells you so instead of improvising.
+Detection stays with your scanner, and the MCP wiring above is exactly how its findings reach Claude for the assessment and the fix.
+
+=== Nothing is homework
+
+The response ends with the exact `/deep-research` line to paste, question already drafted from your repo, and the worktree command if you want the damage report first.
+And when the move is something Claude can set up itself (a hook, a custom agent, a CI workflow), the mentor offers to write it in the same session.
+
+== It never repeats itself
+
+The mentor keeps a small markdown file at `~/.ai-mentor/profile.md`, one line per capability, marked `shown`, `adopted` or `declined`:
+
+[source,markdown,title="~/.ai-mentor/profile.md"]
+----
+# Mentor Profile
+*Updated: 2026-07-13*
+
+Level: comfortable (daily Claude Code use, no automation yet)
+Last new-capability check: 2026-w28
+
+| Capability | Status | Date | Note |
+|------------|--------|------|------|
+| plan-mode | adopted | 2026-06-19 | Uses Shift+Tab habitually |
+| hooks-as-workflow | adopted | 2026-06-26 | PostToolUse test hook in settings |
+| deep-research | shown | 2026-07-08 | Demoed on the jackson-databind CVE triage |
+| worktree-isolation | shown | 2026-07-08 | Upgrade damage report in a worktree |
+| fan-out-workflows | declined | 2026-06-26 | "Too token-heavy for us" |
+----
+
+This one tells the mentor: never explain plan mode or hooks to this engineer, open the next session by asking whether the deep research demo stuck, and never bring up fan-out again.
+It does not re-teach what it showed you last week, it skips what you already use, and it drops anything you declined.
+
+The profile is machine-local and never committed, and it never leaves your machine except as context inside your own Claude sessions.
+You can edit or delete it whenever you want.
+A hand edit always wins over anything the mentor inferred.
+There is no account and no setup.
+
+This is also why the mentor becomes more useful over time: every session starts from what you already know and reaches for the next thing you don't.
+
+[#growth-mode]
+== Growth mode: teach me something
+
+Everything so far started from a problem you brought, which the plugin calls problem mode.
+Growth mode works in the other direction: invoke the mentor bare, and it finds something worth teaching on its own.
+
+[source]
+----
+/ai-mentor:mentor
+----
+
+Depending on what it finds in your setup and your profile, it teaches the most valuable capability you're not using yet, follows up on the last thing it showed you, or opens with what shipped since you last checked.
+
+This also changes how you stay up to date.
+Following Claude Code means tracking changelogs, release notes, videos, tutorials and blog posts, and nobody sustains that alongside a day job.
+The mentor collapses all of it into a single interaction, and it only ever shows you the part that matters to you.
+
+== What's in the catalog
+
+Under the hood, a playbook for each of 24 engineering goals (debugging, code review, refactoring, migration, incident response, performance, security, and so on) ranks 46 approaches.
+Most of them are technique deep-dives, and the rest are verified records of external tools such as the Claude Code GitHub Action and hands-on-validated plugins from Anthropic's official marketplace.
+
+Two parts of the catalog are worth mentioning separately.
+
+First, it also serves people building AI, not just people using it.
+Four goal categories cover building AI agents, MCP integrations, skills and plugins, and LLM-powered product features, backed by dedicated catalog entries for the Agent SDK, MCP development tooling and LLM eval methodology.
+If your team is shipping an AI feature, "what's the right approach here?" is a mentor question too.
+
+Second, beyond the promoted set, the full https://github.com/anthropics/claude-plugins-official[official plugin marketplace^] (around 250 plugins) is available as a lookup directory.
+Name a technology in your problem, Quarkus or Terraform or Grafana, and the mentor greps the directory and surfaces the purpose-built plugin along with its install command.
+Every entry is labeled with how far it was verified: hands-on (installed and exercised), desk-checked (reviewed but not exercised), or caution (a built-in does it better, or there is a sharp edge to know about).
+
+== Why not just ask Claude?
+
+Claude already knows a lot about Claude Code, so why install a plugin instead of asking "what's the best AI approach for debugging this?"
+
+Because a model answering from memory is fine on average and unreliable in the details.
+Claude Code changes every week, so any model's memory of it has gaps, and a model asked about a gap doesn't say "I don't know".
+It fills the gap with a plausible guess.
+
+=== A command that does not exist
+
+While writing this post, I asked Claude Fable 5, in a session without the plugin, which command searches the plugin marketplace.
+The answer, from memory: `claude plugin search <query>`, described with full confidence down to the argument syntax.
+That command does not exist.
+Even the strongest Claude available today fails this way when its memory has a gap.
+The same answer correctly named `claude plugin install`, and that is what makes the invented half so hard to spot: the correct and the fabricated command sit side by side, delivered with the same confidence.
+
+=== Same failure, other shapes
+
+Each guess below follows the same pattern, and each correction was checked against the current official docs:
+
+[cols="1,1"]
+|===
+| The plausible guess | The reality
+
+| An environment variable that feels like it should exist: `$CLAUDE_FILE_PATH` in a hook | No such variable exists: hooks receive their input as JSON on stdin
+| A config format guessed from convention: custom agent `tools` as a YAML list | The `tools` field is a comma-separated string
+| A path that mirrors a real one: MCP config in `~/.claude/mcp.json` | User-scoped MCP servers live in `~/.claude.json`
+| A behavior assumed from similar features: "checkpoints don't survive a restart" | Checkpoints persist across sessions and are cleaned up after 30 days
+|===
+
+=== A moving target
+
+Claude Code moves faster than any model's memory of it.
+A guess that is wrong today can quietly become right after a release, and a correct answer can go stale the same way.
+Whatever the model tells you, you never know which side of that line it is on.
+A catalog that is verified against the docs, and re-verified as they change, takes memory out of the loop.
+
+== Keeping the catalog accurate
+
+A catalog loses its value the moment its content stops matching reality, so most of the engineering in this project went into the pipeline that keeps it accurate:
+
+- A linter runs in CI and verifies the catalog's structural invariants on every PR: every playbook ranking points at a real approach file, every tool record is structurally complete, and the compiled capability index stays in sync with its sources.
+- A drift checker compares the catalog against the live official marketplace manifest, so plugins added or removed upstream are flagged instead of the directory silently going stale.
+- A https://github.com/gwenneg/ai-mentor/blob/main/.claude/skills/ai-mentor-update/SKILL.md[maintenance skill^] keeps the content current: every Monday, a headless Claude session runs it in CI, processes the week's Claude Code changelog, syncs the catalog, and opens a pull request for human review. Weeks with nothing to do are detected deterministically and skipped, so quiet weeks cost nothing.
+- The same skill has a deeper mode that re-verifies the claims in each file against current official docs, oldest-verified first. Every file carries its last-verified date, and the full catalog was last re-verified against Claude Code v2.1.206.
+- An automated benchmark suite is wired into CI for every release. It checks classification, grounding, output shape, the never-repeat guarantee, and that recommendations contain zero fabricated commands.
+
+The pipeline also runs on the same capabilities the catalog teaches: the maintenance passes are headless Claude sessions on a weekly schedule, so the plugin that recommends AI workflows is itself maintained by one.
+
+== Find your 80%
+
+Installation is three lines in Claude Code, no cloning and no file editing.
+The first line adds my plugin marketplace, claude-ichiba, and the next two install the plugin from it:
+
+[source]
+----
+/plugin marketplace add gwenneg/claude-ichiba
+/plugin install ai-mentor@claude-ichiba
+/reload-plugins
+----
+
+[NOTE]
+====
+Installing a plugin usually means letting its author run code on your machine.
+AI Mentor ships no hooks, no MCP servers and no binaries: everything it does goes through Claude's normal permission prompts, and you can audit every file before installing, since it's all markdown.
+And every release is pinned to an immutable commit SHA: what you install is what you keep running, and work in progress on `main` never reaches you.
+====
+
+Then bring it a real problem, or bring nothing and let <<growth-mode,growth mode>> pick the lesson:
+
+[source]
+----
+/ai-mentor:mentor [your problem, or leave empty to learn something you don't know]
+----
+
+You don't have to remember to call it either.
+If you ask something mentor-shaped in a normal session, like "what's the best way to use AI for this?", Claude invokes it on its own.
+
+Claude Code disables auto-update for third-party marketplaces by default, but this plugin ships updates regularly, because the catalog tracks a tool that changes weekly.
+Either enable auto-update once (`/plugin` -> Marketplaces -> claude-ichiba), or refresh manually whenever you want the latest catalog:
+
+[source]
+----
+/plugin marketplace update claude-ichiba
+/reload-plugins
+----
+
+If you try it, start with the problem you are actually dealing with today.
+The plugin did its job when the answer contains something you didn't know existed.
+And when it doesn't, tell the mentor: it records what you already know and does better next time.
+
+== What's next?
+
+AI Mentor is deliberately Claude Code-first, so every recommendation can be verified against one tool's current reality instead of being vaguely right about five tools.
+Support for other Agent Skills-compatible tools may come later.
+
+I'm also considering the community plugin marketplace, which holds more than two thousand plugins of very uneven quality.
+If it joins the catalog, it will be through a strict selection: a small set of proven, actively maintained plugins, carrying the same trust tiers as everything else.
+
+Everything is open source under Apache-2.0: the catalog, the playbooks, the verification tooling and the eval suite all live at https://github.com/gwenneg/ai-mentor[github.com/gwenneg/ai-mentor^].
+Issues and pull requests are welcome, especially reports of anything the mentor got wrong.
