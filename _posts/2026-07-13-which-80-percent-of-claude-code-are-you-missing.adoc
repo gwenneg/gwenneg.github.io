@@ -219,7 +219,7 @@ Either enable auto-update once (`/plugin` -> Marketplaces -> claude-ichiba), or 
 
 [TIP]
 ====
-Skip the manual check: https://github.com/gwenneg/ai-mentor/subscription[subscribe to releases^] and GitHub will tell you the moment a new version ships, so you know exactly when to run the update above.
+Not sure when to update? https://github.com/gwenneg/ai-mentor/subscription[Subscribe to releases^] and GitHub will tell you the moment a new version ships, so you know exactly when to run the update above.
 ====
 
 If you try it, start with the problem you are actually dealing with today.
