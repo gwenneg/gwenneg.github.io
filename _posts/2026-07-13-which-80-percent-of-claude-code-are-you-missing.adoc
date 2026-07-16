@@ -217,6 +217,11 @@ Either enable auto-update once (`/plugin` -> Marketplaces -> claude-ichiba), or 
 /reload-plugins
 ----
 
+[TIP]
+====
+Not sure when to update? https://github.com/gwenneg/ai-mentor/subscription[Subscribe to releases^] and GitHub will tell you the moment a new version ships, so you know exactly when to run the update above.
+====
+
 If you try it, start with the problem you are actually dealing with today.
 The plugin did its job when the answer contains something you didn't know existed.
 And when it doesn't, tell the mentor: it records what you already know and does better next time.
