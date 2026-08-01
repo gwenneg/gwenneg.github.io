@@ -161,8 +161,12 @@ The eval runner reads it, and suddenly the hard questions become string comparis
 Did it classify correctly? `goal == "debugging"`.
 Did it re-offer the capability the user declined? Grep.
 Identical verdicts on every run.
+
+[IMPORTANT]
+====
 This works because the plugin's decisions come from a fixed menu of goals and moves.
 If your product's answers don't reduce to a short vocabulary, the receipt can't either.
+====
 
 The judge didn't disappear.
 A few cases genuinely need judgment, like the fabrication trap: ask for a feature that doesn't exist and check that the plugin says so instead of playing along.
@@ -172,12 +176,15 @@ But one question is a far easier job than before, when my written expectations a
 A calibrated judge scores well, but the score is a snapshot: every new case can reintroduce the old biases, and I would have to keep re-measuring forever.
 A string comparison never needs calibrating.
 
-One warning before you copy this: adding the receipt changes the model you're measuring.
+[WARNING]
+====
+Adding the receipt changes the model you're measuring.
 A comparison of the same cases with and without the receipt showed no effect at first.
 Then my busiest test case, the one whose answers already carried the most work, started failing more often: producing the receipt cost the model effort exactly where it had none to spare.
 Shrinking the receipt from five fields to the four you saw above recovered most of the loss.
 The pattern is documented: https://arxiv.org/abs/2408.02442[format requirements measurably degrade model output^].
 So run this comparison on your most loaded case, not an easy one.
+====
 
 == Lesson 5: some failures are rates
 
