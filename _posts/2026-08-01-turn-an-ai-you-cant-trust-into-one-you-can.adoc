@@ -1,5 +1,5 @@
 = Turn an AI you can't trust into one you can
-:page-excerpt: A month of building evals for an AI-powered product: the AI grading the tests was wrong one time in four, the sample codebase lied about itself, and keeping them trustworthy took a discovery I did not expect.
+:page-excerpt: The tests you build to catch an AI's mistakes will make mistakes of their own. What a month of evals taught me.
 :page-tags: [ai, claude code, evals, llm, testing]
 :revdate: 2026-08-01
 
