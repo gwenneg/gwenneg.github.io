@@ -1,5 +1,5 @@
 = Turn an AI you can't trust into one you can
-:page-excerpt: The tests you build to catch an AI's mistakes will make mistakes of their own. What a month of evals taught me.
+:page-excerpt: You can't unit-test an AI. Notes from a month of building evals instead.
 :page-tags: [ai, claude code, evals, llm, testing]
 :revdate: 2026-08-01
 
