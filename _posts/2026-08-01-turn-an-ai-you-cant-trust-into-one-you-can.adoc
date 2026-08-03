@@ -194,7 +194,7 @@ The model kept finding new sentences for the same leak, and at one point the inv
 
 *When a model keeps violating an instruction in creative new ways, look for the second instruction rewarding it.*
 
-== Lesson 6: some failures are rates
+== Lesson 6: not every failure can reach zero
 
 The last lesson is the one I resisted longest.
 
@@ -242,7 +242,7 @@ Eight things I'd tell myself a month ago:
 == Dig deeper
 
 * https://platform.claude.com/docs/en/test-and-evaluate/develop-tests[Anthropic's guide to building evals^] covers eval design and grading options, including code-based and model-based grading.
-* Hamel Husain's https://hamel.dev/blog/posts/evals/[Your AI Product Needs Evals^] is the best practitioner introduction I know, and his follow-up on https://hamel.dev/blog/posts/llm-judge/[LLM-as-judge^] walks through judge calibration with a domain expert, the technique that saved this project.
+* Hamel Husain's https://hamel.dev/blog/posts/evals/[Your AI Product Needs Evals^] is the best practitioner introduction I know, and his follow-up on https://hamel.dev/blog/posts/llm-judge/[LLM-as-judge^] walks through judge calibration with a domain expert, the technique that caught my broken judge.
 * The evals section of Eugene Yan's https://eugeneyan.com/writing/llm-patterns/#evals-to-measure-performance[Patterns for Building LLM-based Systems & Products^] surveys eval patterns and their tradeoffs.
 * The https://arxiv.org/pdf/2005.04118[CheckList paper^] (Ribeiro et al.) inspired how I picked cases: cover each capability and each rule systematically instead of adding cases as they occur to you.
 * https://arxiv.org/pdf/2406.12045[τ-bench^] introduced `pass^k`, the "must pass every run" metric this post calls promises, and shows how badly single-run pass rates overstate agent reliability.
