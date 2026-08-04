@@ -25,7 +25,7 @@ The parts that won't are the lessons.
 
 [TIP]
 ====
-In a hurry? Jump to the <<starting-from-zero,If you are starting from zero>> section for a TL;DR of this post.
+In a hurry? Jump to the <<starting-from-scratch,If you are starting from scratch>> section for a TL;DR of this post.
 ====
 
 == What is an eval, and why bother?
@@ -225,8 +225,8 @@ Bad luck within the rate still passes, with a printed warning saying so.
 A genuine regression stays red.
 The test that blocked two releases became a monitored number that has not caused a crisis since.
 
-[#starting-from-zero]
-== If you are starting from zero
+[#starting-from-scratch]
+== If you are starting from scratch
 
 Eight things I'd tell myself a month ago:
 
