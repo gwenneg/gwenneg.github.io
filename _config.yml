@@ -6,6 +6,11 @@ asciidoctor:
   attributes:
     icons: font
     source-highlighter: rouge
+analytics:
+  provider: google-gtag
+  google:
+    tracking_id: G-YVR9PWYP1T
+    anonymize_ip: true
 author:
   avatar: /assets/images/gwenneg.png
   bio: Principal Software Engineer at Red Hat. Open source contributor. AI enthusiast. Judoka.
