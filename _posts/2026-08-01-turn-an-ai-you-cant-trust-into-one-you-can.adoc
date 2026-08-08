@@ -142,14 +142,14 @@ A few checks skipped the judge entirely, plain code like greps and file comparis
 
 That's when I realized *I didn't need to make the judge better, I needed to rely on it less.*
 
-So I introduced one invisible HTML comment at the end of every plugin answer, a machine-readable receipt of what the plugin just did.
+So I gave the plugin a receipt to append to its answers: one HTML comment, a machine-readable summary of what it just did.
 
 [source]
 ----
 <!-- mentor mode=problem goal=debugging move=autonomous-loops surprise=hooks-as-workflow -->
 ----
 
-Users never see it: Claude Code renders answers as markdown, and HTML comments are invisible there.
+Users never see it: the plugin only emits the receipt when an environment variable enables it, and only the eval runner sets that variable.
 The fields are the plugin's own vocabulary: the mode it ran in, the goal it classified, the move it recommended, and the surprise, a bonus capability it taught along the way.
 The eval runner reads it, and suddenly the hard questions become string comparisons.
 Did it classify correctly?
@@ -233,7 +233,7 @@ Eight things I'd tell myself a month ago:
 . Before adopting an eval framework, count the lines it would actually save you. State is the hard part, and fixtures and rules are yours to write either way.
 . Hand the judge files, never facts from memory. The judge's memory is frozen at training time, and yours goes stale the moment the thing you described changes, like a prose description of a file that changes weekly.
 . Start with 10 cases and a judge, but calibrate the judge in week one. Blind-label a sample of verdicts. The result will surprise you, and every disagreement is a one-sentence fix.
-. Move every check you can into plain code. Counting, greps, file diffs. If your product's answers fit a short vocabulary, ask the model to emit a structured receipt with every answer instead. Reserve the judge for questions that need judgment.
+. Move every check you can into plain code. Counting, greps, file diffs. If your product's answers fit a short vocabulary, ask the model to emit a structured receipt instead, enabled by an environment variable only your eval runner sets. Reserve the judge for questions that need judgment.
 . When a model repeatedly breaks a rule, audit your other rules first. The contradiction may be yours.
 . Log every run to a file you keep. Per-case history is how you tell a flaky test from a stable 15 percent failure rate wearing a flaky costume. Without it, you can't tell the difference.
 . Decide which tests are promises and which are rates, and give them different gates. One policy for both will either block good releases or let real failures slip through.
