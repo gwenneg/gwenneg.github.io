@@ -1,6 +1,6 @@
 = Take soundings before you ship
 :imagesdir: /assets/images/posts/take-soundings-before-you-ship
-:page-excerpt: My team decides every week whether a release is safe to ship. Soundings is the Claude Code plugin I built to answer that: one clear verdict, release, manual review, or no-go.
+:page-excerpt: We decide every week whether a release is safe to ship. Soundings is the Claude Code plugin I built to answer that: release, manual review, or no-go.
 :page-tags: [agents, ai, claude code, plugins, release management, security]
 :revdate: 2026-09-03
 
