@@ -11,7 +11,7 @@ image:header.png[alt="Take soundings before you ship", width="800px"]
 This post was written with the help of AI.
 ====
 
-I'm part of a Red Hat engineering team responsible for shipping multiple cloud services to production.
+I lead a Red Hat engineering team responsible for shipping multiple cloud services to production.
 Every week we make a call: is this deployment safe to ship?
 When it isn't, our job is to catch the risks and mitigate them before they reach production.
 The end goal never changes: keep production stable and reliable, with zero customer disruption.
