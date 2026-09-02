@@ -62,5 +62,6 @@ subtitle: Java, Quarkus, AI, Kafka, databases, performances and more...
 tag_archive:
   type: liquid
   path: /tags/
+timezone: Europe/Paris
 title: Gwenneg's blog
 url: https://gwenneg.github.io
