@@ -1,0 +1,251 @@
+= Take soundings before you ship
+:imagesdir: /assets/images/posts/take-soundings-before-you-ship
+:page-excerpt: My team decides every week whether a release is safe to ship. Soundings is the Claude Code plugin I built to answer that: one clear verdict, release, manual review, or no-go.
+:page-tags: [agents, ai, claude code, plugins, release management, security]
+:revdate: 2026-09-03
+
+image:header.png[alt="Take soundings before you ship", width="800px"]
+
+[NOTE]
+====
+This post was written with the help of AI.
+====
+
+I'm part of a Red Hat engineering team responsible for shipping multiple cloud services to production.
+Every week we make a call: is this deployment safe to ship?
+When it isn't, our job is to catch the risks and mitigate them before they reach production.
+The end goal never changes: keep production stable and reliable, with zero customer disruption.
+
+What has changed is the volume.
+AI now generates and touches code at a rate no human review process was built for.
+Diffs grow, release cadence accelerates, but reviewing everything carefully doesn't scale.
+The only review that scales with AI is AI: a reviewer that reads everything, with judgment, before anything ships.
+
+That reviewer is https://github.com/gwenneg/soundings[Soundings^], a Claude Code plugin I built.
+The name comes from an old sailors' practice: measuring the water's depth ahead before committing a ship to a course, "taking soundings".
+This post explains what it does, why I think you should try it on your next release, and why it is safe to run on your laptop even though its job is to read text it has no reason to trust.
+
+[IMPORTANT]
+====
+Red Hat associates: this post is about the general-purpose Soundings plugin.
+To analyze the deployment MRs you ship through app-interface, pair it with the https://github.com/gwenneg/soundings-app-interface[soundings-app-interface^] adapter.
+I'll publish a dedicated post about that adapter soon.
+====
+
+== What Soundings does
+
+In your Claude Code session, point Soundings at one or more GitHub or GitLab compare URLs:
+
+[source]
+----
+/soundings:analyze https://github.com/org/repo/compare/v1.0...v1.1
+----
+
+It reads the diffs, the commit messages, the PR and MR comments, and the repository documentation.
+Then it hands back one clear verdict (release, manual review, or no-go) and a report specific enough to act on: named files, named functions, concrete failure modes, and action items sorted by urgency.
+A few minutes after you hit enter, the report shows up right in your session.
+Ask for a file and the helper saves a markdown copy wherever you point it, ready to archive or to post where the ship decision happens:
+
+[source]
+----
+/soundings:analyze https://github.com/org/repo/compare/v1.0...v1.1 save the report to ./reviews/v1.1.md
+----
+
+The verdict follows a fixed policy: by default, any critical concern blocks the release and any high concern requires manual review.
+Every concern is a concrete claim you can go verify, so if the verdict feels wrong, you can check which concern caused it and whether that concern is true.
+You can also tighten the policy and block on high or even medium concerns for your most critical services.
+
+There is nothing to deploy and no LLM API key to create: the analysis runs in the Claude Code session you already have.
+A small open-source Go helper does the deterministic work, borrowing the Git credentials you already use: a `gh` or `glab` login, or a platform token.
+
+A run has three stages:
+
+. *Fetch.*
+The Go helper clones the repositories, computes the diffs locally, and writes per-file patches into a temporary directory it owns, with an index describing how much each file changed and its risk tier.
+It returns only counts and paths, never content.
+. *Assess.*
+An isolated subagent called `risk-analyst` reads the fetched material with judgment instead of a fixed size limit: database, auth, and API contract changes are always read in full, tests are skimmed as evidence of coverage.
+It assigns each concern an evidence-based severity, the higher one when evidence is incomplete, and returns one structured JSON analysis.
+. *Render.*
+The helper validates that JSON against a schema, computes the verdict from the severities and the blocking policy, and renders the report.
+When it succeeds, the fetched data is deleted.
+
+You can pass several compare URLs in one invocation, and they are analyzed together.
+A coordinated deployment usually spans repositories.
+The schema migration lives in one service, the code that depends on it in another.
+Per-repo CI can never see that interaction.
+A single analysis across all the repos of a deployment can, and compound risks are what Soundings hunts for.
+For a team shipping coordinated deployments every week, this is the feature that matters.
+
+== What a report looks like
+
+Soundings looks for the risk families you would brief a new release manager on:
+
+* *Database changes*: migration ordering, rollback traps, locks taken under load
+* *Security*: secrets in diffs, auth changes, new logging on sensitive paths, risky dependency updates
+* *API contracts*: breaking changes, services no longer agreeing on request and response shapes
+* *Infrastructure and configuration*: deployment and CI changes, resource limits, config changes paired with the code that reads them
+* *Resilience*: retry, timeout, rate limit, circuit breaker, and connection pool changes, which all shift capacity and failure modes
+* *Compound risks*: changes that are each fine alone but dangerous together, including across repositories
+
+Here is the top of a report, from a demo analysis of a two-service release:
+
+image:soundings-demo-report.png[alt="Soundings demo report", width=85%]
+
+You can read the https://github.com/gwenneg/soundings/blob/main/docs/DEMO_REPORT.md[full demo report^] to see everything it contains.
+
+Two findings from that report stand out.
+The critical one caught a database migration and the code using its new column shipping in the same release, a sequence the service's own deployment rules forbid.
+The action item is blunt: block the deployment and split the release, migration first, code second.
+The compound one caught a retry count raised from 2 to 5 in one file and a timeout raised from 200ms to 1s in another.
+Each change is fine alone.
+Combined, the worst case blows past the service's 2 second SLO when the email service degrades.
+No single-file review connects those two lines.
+
+The positives are evidence-based too, and just as specific.
+The same report credits the release for a feature flag guarding the new endpoint, an `IF NOT EXISTS` guard on the migration, a documented rollback path, and a gateway change verified compatible with both versions of the API it fronts.
+That last one is only visible because the two repositories were analyzed together.
+
+== Try it on your next release
+
+Here's the complete setup on a machine that already runs Claude Code:
+
+[source]
+----
+/plugin marketplace add gwenneg/claude-ichiba <1>
+/plugin install soundings@claude-ichiba
+/reload-plugins
+----
+<1> Full disclosure: https://github.com/gwenneg/claude-ichiba[claude-ichiba^] is my own plugin marketplace.
+It also hosts https://github.com/gwenneg/ai-mentor[AI Mentor^], the plugin from link:/2026/07/13/which-80-percent-of-claude-code-are-you-missing.html[an earlier post^] that teaches you the Claude Code capabilities you're missing.
+
+You need two things besides Claude Code: a Go toolchain, and a credential for each platform you analyze, either a `gh` or `glab` login or a `GITHUB_TOKEN`/`GITLAB_TOKEN` env var.
+That's it.
+No LLM API key, no service account, no Docker image, no config file.
+At run time, Soundings picks the right credential for each platform and each GitLab host, so one invocation can mix github.com and any number of GitLab instances, and a token for one host is never sent to another.
+
+Claude Code only updates plugins from its official marketplace automatically.
+Enable auto-update for claude-ichiba in the `/plugin` panel, or refresh it yourself from time to time:
+
+[source]
+----
+/plugin marketplace update claude-ichiba
+/reload-plugins
+----
+
+== Why it's safe to run on your laptop
+
+Everything Soundings analyzes (diffs, commit messages, PR comments, repository docs) could have been written by anyone.
+Even your own release carries text you didn't write: other people's code, bot commits, comments from anyone with an account.
+So the design assumes every byte it fetches is hostile, and the protections are limits the AI cannot cross, not instructions it is asked to follow.
+
+=== What a run talks to
+
+Those limits start at the network.
+A run adds no channel of its own: no extra LLM API, no telemetry, no server collecting anything.
+It only reaches the platforms that host your code, and the analysis stays in your existing Claude Code session, like the rest of your work.
+
+Even that traffic never comes from the AI: the fetching is done by a Go helper with an SSRF-hardened HTTP client.
+The client blocks connections to private and internal addresses at dial time, covering redirects and DNS rebinding rather than just the initial URL.
+A document link planted in a repo cannot make your laptop probe your internal network or a cloud metadata endpoint.
+It guards your credentials the same way: a GitLab token is only ever sent to its own host, and gets stripped from any redirect that leaves it.
+
+=== Who gets to read the data
+
+Once the data is fetched, the reading happens in a dedicated subagent called `risk-analyst`, and each agent in a run gets only the permissions its job needs:
+
+[cols="2,2,2"]
+|===
+|What |Main agent (your session) |`risk-analyst` subagent
+
+|Shell, file edits, network
+|Switched off during the run
+|Never had them
+
+|Your project files
+|Can read them
+|Cannot read them*
+
+|The fetched release data
+|Cannot read it*
+|The only thing it can read*
+
+|The helper's `fetch` and `render` tools
+|Can call them
+|Cannot call them
+|===
+
+The starred cells are one fence, enforced by a hook the plugin ships.
+It exists because read-only is not enough on its own: an injected instruction could still make the AI read `~/.ssh` or a `.env` file and leak what it finds into the report.
+The hook is backed by a registry of the exact directories the fetch step created, and the two agents sit on opposite sides of the fence: the `risk-analyst` may read only in there, every other agent may read anywhere but there.
+If anything goes wrong with the registry, the hook denies rather than allows.
+And the plugin cannot override your own Claude Code settings: anything you've denied there stays denied.
+
+The result: a prompt injection buried in a diff reaches only the `risk-analyst`, and can, at worst, change what the analysis says.
+It cannot run commands in your session, and the hostile text cannot be pulled into any other agent's context.
+
+=== What comes out, and what remains
+
+What comes out of a run is as controlled as what goes in.
+Every file is written by the helper, and it refuses to overwrite anything that is not a previously generated Soundings report.
+Recognizable credentials (platform tokens, cloud keys, PEM blocks) are redacted before the analysis is even validated, so a secret that slips into the assessment never reaches the report.
+Externally-authored text is escaped in the report, so a crafted comment cannot forge its structure.
+And the verdict is computed from the concern severities: flipping it would require fabricating or suppressing a whole concern, in plain sight, in a report a human will read.
+
+Nothing stays behind after a run.
+The helper owns the fetched data from creation to deletion: a successful render deletes it, a failed fetch cleans up behind itself, and an abandoned run's leftovers are deleted the next time the helper starts.
+Only the report survives.
+
+=== The residual risk
+
+One risk remains: a prompt injection can still bias the analysis wording or a concern's severity.
+That risk is inherent to any LLM-based review, which is why every report opens with an advisory banner and why the footer names the exact model that performed the analysis.
+The severity-driven verdict at least forces that bias into the most auditable place there is: a named concern, in a report, right where you will read it.
+
+And if you'd rather verify all of this than trust me: the helper is a small, tested, open-source Go program you can read in an afternoon, and it never runs arbitrary commands.
+It runs as an MCP server that does nothing until a tool is called: no credentials read, no network touched.
+You can also toggle it off entirely in the `/mcp` panel.
+
+== Getting better results
+
+Two inputs make the analysis noticeably sharper.
+
+A `.soundings.md` file in your repository root tells the analyst what the service is, how critical it is, and where the known risky areas are.
+Good candidates: the SLO your callers expect, deployment rules such as "migrations ship in their own release", rollback procedures, and links to your runbooks.
+That's where the demo's blocking concern came from: the analyst read the split-release rule in the repository's own documentation and enforced it.
+Documentation linked from it is fetched too, SSRF-hardened and size-capped like every other fetch.
+
+A `/soundings note` comment on a PR or MR hands the analysis context a diff cannot show:
+
+[source]
+----
+/soundings note The new index was tested on a staging copy with production data volume. Creation took 47 seconds, with no lock contention.
+----
+
+Notes are only weighted when their author is the PR/MR author or an authorized approver, and that authorization is computed from the platform API, never guessed.
+Unauthorized notes are disclosed in the report but excluded from the analysis, so a random commenter cannot change the verdict.
+The demo report shows one: a comment insisting the release should ship regardless of the verdict, listed for transparency, labeled unauthorized, and ignored.
+
+The full guide lives in the repo: https://github.com/gwenneg/soundings/blob/main/docs/IMPROVING_ANALYSIS.md[Improving your release readiness analysis^].
+
+== Where Soundings comes from
+
+Soundings is the successor to https://github.com/RedHatInsights/release-confidence-score[Release Confidence Score^], a tool I originally built at Red Hat, licensed under Apache-2.0.
+I extracted its core with the full git history preserved: the original commits, including the security hardening, are visible in the Soundings log.
+It is Apache-2.0 too, and the whole pipeline is open to inspection.
+
+== What's next
+
+Everything in this post runs interactively, on a laptop, with a human reading the report.
+The next step is to remove the laptop.
+The entire pipeline (the skill, the isolated analyst, the helper) is designed to also run headless: a containerized Claude Code session analyzing a release unattended, as a step of the release process itself, delivering its report where the ship decision is made.
+And because the verdict is computed rather than written, it can serve as a gate in a continuous delivery pipeline: a clean verdict promotes, anything else stops the line and hands the decision back to a human, with the report already explaining why.
+That is why a normal run is already fully prompt-free, and why the injection containment doesn't rely on a human watching: the guarantees that make Soundings safe on your laptop are exactly the ones an unattended run needs.
+
+I'm also exploring how to port Soundings to https://openai.com/codex/[Codex^].
+The split at the heart of the design, code for the deterministic work and an isolated agent for the reading, is not specific to Claude Code.
+Stay tuned.
+
+Soundings is under active development, and feedback directly shapes what changes next: https://github.com/gwenneg/soundings/issues[issues and ideas^] are welcome on the repository.
+
+Take soundings before you ship.
