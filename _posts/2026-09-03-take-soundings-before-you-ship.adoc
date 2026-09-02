@@ -90,7 +90,7 @@ Soundings looks for the risk families you would brief a new release manager on:
 
 Here is the top of a report, from a demo analysis of a two-service release:
 
-image:soundings-demo-report.png[alt="Soundings demo report", width=85%]
+image:soundings-demo-report.png[alt="Soundings demo report", width=85%, role=bordered]
 
 You can read the https://github.com/gwenneg/soundings/blob/main/docs/DEMO_REPORT.md[full demo report^] to see everything it contains.
 
