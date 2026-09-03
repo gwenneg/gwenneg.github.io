@@ -22,7 +22,7 @@ Diffs grow, release cadence accelerates, but reviewing everything carefully does
 The only review that scales with AI is AI: a reviewer that reads everything, with judgment, before anything ships.
 
 That reviewer is https://github.com/gwenneg/soundings[Soundings^], a Claude Code plugin I built.
-The name comes from an old sailors' practice: measuring the water's depth ahead before committing a ship to a course, "taking soundings".
+The name comes from an https://en.wikipedia.org/wiki/Depth_sounding[old sailors' practice^]: measuring the water's depth ahead before committing a ship to a course, "taking soundings".
 This post explains what it does, why I think you should try it on your next release, and why it is safe to run on your laptop even though its job is to read text it has no reason to trust.
 
 [IMPORTANT]
