@@ -64,7 +64,7 @@ A run has three stages:
 The Go helper clones the repositories, computes the diffs locally, and writes per-file patches into a temporary directory it owns, with an index describing how much each file changed and its risk tier.
 It returns only counts and paths, never content.
 . *Assess.*
-An isolated subagent called `risk-analyst` decides how deeply to read each file instead of cutting every diff to a fixed size: database, auth, and API contract changes are always read in full, tests are skimmed as evidence of coverage.
+An isolated subagent called `risk-analyst` decides how deeply to read each file instead of cutting every diff to a fixed size: database, auth, and API contract changes are always read in full, tests are skimmed to check the changes are covered.
 It assigns each concern an evidence-based severity, the higher one when evidence is incomplete, and returns one structured JSON analysis.
 . *Render.*
 The helper validates that JSON against a schema, computes the verdict from the severities and the blocking policy, and renders the report.
