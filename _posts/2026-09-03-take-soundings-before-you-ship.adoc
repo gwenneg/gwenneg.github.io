@@ -240,7 +240,7 @@ Everything in this post runs interactively, on a laptop, with a human reading th
 The next step is to remove the laptop.
 The entire pipeline (the skill, the isolated analyst, the helper) is designed to also run headless: a containerized Claude Code session analyzing a release unattended, as a step of the release process itself, delivering its report where the ship decision is made.
 And because the verdict is computed rather than written, it can serve as a gate in a continuous delivery pipeline: a clean verdict promotes, anything else stops the line and hands the decision back to a human, with the report already explaining why.
-That is why a normal run is already fully prompt-free, and why the injection containment doesn't rely on a human watching: the guarantees that make Soundings safe on your laptop are exactly the ones an unattended run needs.
+That's why a normal run is already fully prompt-free, and why the injection containment doesn't rely on a human watching: the guarantees that make Soundings safe on your laptop are exactly the ones an unattended run needs.
 
 I'm also exploring how to port Soundings to https://openai.com/codex/[Codex^].
 The split at the heart of the design, code for the deterministic work and an isolated agent for the reading, is not specific to Claude Code.
@@ -248,4 +248,4 @@ Stay tuned.
 
 Soundings is under active development, and feedback directly shapes what changes next: https://github.com/gwenneg/soundings/issues[issues and ideas^] are welcome on the repository.
 
-Take soundings before you ship.
+Take soundings before you ship!
