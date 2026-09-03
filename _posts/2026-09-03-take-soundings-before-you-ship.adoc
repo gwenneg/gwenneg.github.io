@@ -91,7 +91,7 @@ Soundings looks for the risk families you would brief a new release manager on:
 * *Compound risks*: changes that are each fine alone but dangerous together, including across repositories
 
 Here's the top of a report, from a demo analysis of a two-service release.
-The Summary section is what the session prints.
+Your session shows only the Summary section.
 The rest lives in the markdown file:
 
 image:soundings-demo-report.png[alt="Soundings demo report", width=85%, role=bordered]
