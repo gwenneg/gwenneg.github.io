@@ -96,7 +96,7 @@ You can read the https://github.com/gwenneg/soundings/blob/main/docs/DEMO_REPORT
 
 Two findings from that report stand out.
 The critical one caught a database migration and the code using its new column shipping in the same release, a sequence the service's own deployment rules forbid.
-The action item is blunt: block the deployment and split the release, migration first, code second.
+Its action item: block the deployment and split the release, migration first, code second.
 The compound one caught a retry count raised from 2 to 5 in one file and a timeout raised from 200ms to 1s in another.
 Each change is fine alone.
 Combined, the worst case blows past the service's 2 second SLO when the email service degrades.
