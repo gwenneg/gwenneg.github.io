@@ -103,7 +103,7 @@ Combined, the worst case blows past the service's 2 second SLO when the email se
 No single-file review connects those two lines.
 
 The positives are evidence-based too, and just as specific.
-The same report credits the release for a feature flag guarding the new endpoint, an `IF NOT EXISTS` guard on the migration, a documented rollback path, and a gateway change verified compatible with both versions of the API it fronts.
+The same report credits the release for a feature flag guarding the new endpoint, an `IF NOT EXISTS` guard on the migration, a documented rollback path, and a gateway change verified compatible with both the old and new versions of the API behind it.
 That last one is only visible because the two repositories were analyzed together.
 
 == Try it on your next release
