@@ -181,7 +181,7 @@ The hook is backed by a registry of the exact directories the fetch step created
 If anything goes wrong with the registry, the hook denies rather than allows.
 And the plugin cannot override your own Claude Code settings: anything you've denied there stays denied.
 
-The result: a prompt injection buried in a diff reaches only the `risk-analyst`, and can, at worst, change what the analysis says.
+The result: a prompt injection buried in a diff reaches only `risk-analyst`, and can, at worst, change what the analysis says.
 It cannot run commands in your session, and the hostile text cannot be pulled into any other agent's context.
 
 === What comes out, and what remains
@@ -222,7 +222,7 @@ A `/soundings note` comment on a PR or MR hands the analysis context a diff cann
 /soundings note The new index was tested on a staging copy with production data volume. Creation took 47 seconds, with no lock contention.
 ----
 
-Notes are only weighted when their author is the PR/MR author or an authorized approver, and that authorization is computed from the platform API, never guessed.
+Notes only influence the analysis when their author is the PR/MR author or an authorized approver, and that authorization is computed from the platform API, never guessed.
 Unauthorized notes are disclosed in the report but excluded from the analysis, so a random commenter cannot change the verdict.
 The demo report shows one: a comment insisting the release should ship regardless of the verdict, listed for transparency, labeled unauthorized, and ignored.
 
