@@ -43,13 +43,15 @@ In your Claude Code session, point Soundings at one or more GitHub or GitLab com
 
 It reads the diffs, the commit messages, the PR and MR comments, and the repository documentation.
 Then it hands back one clear verdict (release, manual review, or no-go) and a report specific enough to act on: named files, named functions, concrete failure modes, and action items sorted by urgency.
-A few minutes after you hit enter, the report shows up right in your session.
-Ask for a file and the helper saves a markdown copy wherever you point it, ready to archive or to post where the ship decision happens:
+Before it starts, it asks where to save the report, unless you already said so:
 
 [source]
 ----
 /soundings:analyze https://github.com/org/repo/compare/v1.0...v1.1 save the report to ./reviews/v1.1.md
 ----
+
+A few minutes after you hit enter, the verdict shows up right in your session: the summary, the recommendation, and what drove it.
+The full report is the markdown file, written by the helper, ready to archive or to post where the ship decision happens.
 
 The verdict follows a fixed policy: by default, any critical concern blocks the release and any high concern requires manual review.
 Every concern is a concrete claim you can go verify, so if the verdict feels wrong, you can check which concern caused it and whether that concern is true.
@@ -67,7 +69,7 @@ It returns only counts and paths, never content.
 An isolated subagent called `risk-analyst` decides how deeply to read each file instead of cutting every diff to a fixed size: database, auth, and API contract changes are always read in full, tests only when they back up a claim about coverage.
 It assigns each concern an evidence-based severity, the higher one when evidence is incomplete, and returns one structured JSON analysis.
 . *Render.*
-The helper validates that JSON against a schema, computes the verdict from the severities and the blocking policy, and renders the report.
+The helper validates that JSON against a schema, computes the verdict from the severities and the blocking policy, renders the report, and writes it to the file you chose.
 When it succeeds, the fetched data is deleted.
 
 You can pass several compare URLs in one invocation, and they are analyzed together.
@@ -88,7 +90,8 @@ Soundings looks for the risk families you would brief a new release manager on:
 * *Resilience*: retry, timeout, rate limit, circuit breaker, and connection pool changes, which all shift capacity and failure modes
 * *Compound risks*: changes that are each fine alone but dangerous together, including across repositories
 
-Here is the top of a report, from a demo analysis of a two-service release:
+Here is the top of a report, from a demo analysis of a two-service release.
+Everything above the first rule is what the session shows; the rest lives in the file:
 
 image:soundings-demo-report.png[alt="Soundings demo report", width=85%, role=bordered]
 
@@ -240,7 +243,7 @@ Everything in this post runs interactively, on a laptop, with a human reading th
 The next step is to remove the laptop.
 The entire pipeline (the skill, the isolated analyst, the helper) is designed to also run headless: a containerized Claude Code session analyzing a release unattended, as a step of the release process itself, delivering its report where the ship decision is made.
 And because the verdict is computed rather than written, it can serve as a gate in a continuous delivery pipeline: a clean verdict promotes, anything else stops the line and hands the decision back to a human, with the report already explaining why.
-That's why a normal run is already fully prompt-free, and why the injection containment doesn't rely on a human watching: the guarantees that make Soundings safe on your laptop are exactly the ones an unattended run needs.
+That's why a normal run already needs no permission prompt, why a headless run names the report file in the invocation since there is nobody to ask, and why the injection containment doesn't rely on a human watching: the guarantees that make Soundings safe on your laptop are exactly the ones an unattended run needs.
 
 I'm also exploring how to port Soundings to https://openai.com/codex/[Codex^].
 The split at the heart of the design, code for the deterministic work and an isolated agent for the reading, is not specific to Claude Code.
