@@ -90,9 +90,9 @@ Soundings looks for the risk families you would brief a new release manager on:
 * *Resilience*: retry, timeout, rate limit, circuit breaker, and connection pool changes, which all shift capacity and failure modes
 * *Compound risks*: changes that are each fine alone but dangerous together, including across repositories
 
-Here's the top of a report, from a demo analysis of a two-service release.
 Your session shows only the Summary section.
-The rest lives in the markdown file:
+The full report is in the markdown file.
+Here's the top of one, from a demo analysis of a two-service release:
 
 image:soundings-demo-report.png[alt="Soundings demo report", width=85%, role=bordered]
 
