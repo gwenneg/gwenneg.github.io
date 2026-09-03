@@ -23,7 +23,7 @@ The only review that scales with AI is AI: a reviewer that reads everything, wit
 
 That reviewer is https://github.com/gwenneg/soundings[Soundings^], a Claude Code plugin I built.
 The name comes from an https://en.wikipedia.org/wiki/Depth_sounding[old sailors' practice^]: measuring the water's depth ahead before committing a ship to a course, "taking soundings".
-This post explains what it does, why I think you should try it on your next release, and why it is safe to run on your laptop even though its job is to read text it has no reason to trust.
+This post explains what the plugin does, why I think you should try it on your next release, and why it is safe to run on your laptop even though its job is to read text it has no reason to trust.
 
 [IMPORTANT]
 ====
@@ -64,7 +64,7 @@ A run has three stages:
 The Go helper clones the repositories, computes the diffs locally, and writes per-file patches into a temporary directory it owns, with an index describing how much each file changed and its risk tier.
 It returns only counts and paths, never content.
 . *Assess.*
-An isolated subagent called `risk-analyst` reads the fetched material with judgment instead of a fixed size limit: database, auth, and API contract changes are always read in full, tests are skimmed as evidence of coverage.
+An isolated subagent called `risk-analyst` decides how deeply to read each file instead of cutting every diff to a fixed size: database, auth, and API contract changes are always read in full, tests only when they back up a claim about coverage.
 It assigns each concern an evidence-based severity, the higher one when evidence is incomplete, and returns one structured JSON analysis.
 . *Render.*
 The helper validates that JSON against a schema, computes the verdict from the severities and the blocking policy, and renders the report.
@@ -96,14 +96,14 @@ You can read the https://github.com/gwenneg/soundings/blob/main/docs/DEMO_REPORT
 
 Two findings from that report stand out.
 The critical one caught a database migration and the code using its new column shipping in the same release, a sequence the service's own deployment rules forbid.
-The action item is blunt: block the deployment and split the release, migration first, code second.
+Its action item: block the deployment and split the release, migration first, code second.
 The compound one caught a retry count raised from 2 to 5 in one file and a timeout raised from 200ms to 1s in another.
 Each change is fine alone.
 Combined, the worst case blows past the service's 2 second SLO when the email service degrades.
 No single-file review connects those two lines.
 
 The positives are evidence-based too, and just as specific.
-The same report credits the release for a feature flag guarding the new endpoint, an `IF NOT EXISTS` guard on the migration, a documented rollback path, and a gateway change verified compatible with both versions of the API it fronts.
+The same report credits the release for a feature flag guarding the new endpoint, an `IF NOT EXISTS` guard on the migration, a documented rollback path, and a gateway change verified compatible with both the old and new versions of the API behind it.
 That last one is only visible because the two repositories were analyzed together.
 
 == Try it on your next release
@@ -175,13 +175,13 @@ Once the data is fetched, the reading happens in a dedicated subagent called `ri
 |Cannot call them
 |===
 
-The starred cells are one fence, enforced by a hook the plugin ships.
+The starred cells all describe the same mechanism: a fence around the fetched data, enforced by a hook the plugin ships.
 It exists because read-only is not enough on its own: an injected instruction could still make the AI read `~/.ssh` or a `.env` file and leak what it finds into the report.
 The hook is backed by a registry of the exact directories the fetch step created, and the two agents sit on opposite sides of the fence: the `risk-analyst` may read only in there, every other agent may read anywhere but there.
 If anything goes wrong with the registry, the hook denies rather than allows.
 And the plugin cannot override your own Claude Code settings: anything you've denied there stays denied.
 
-The result: a prompt injection buried in a diff reaches only the `risk-analyst`, and can, at worst, change what the analysis says.
+The result: a prompt injection buried in a diff reaches only `risk-analyst`, and can, at worst, change what the analysis says.
 It cannot run commands in your session, and the hostile text cannot be pulled into any other agent's context.
 
 === What comes out, and what remains
@@ -222,9 +222,9 @@ A `/soundings note` comment on a PR or MR hands the analysis context a diff cann
 /soundings note The new index was tested on a staging copy with production data volume. Creation took 47 seconds, with no lock contention.
 ----
 
-Notes are only weighted when their author is the PR/MR author or an authorized approver, and that authorization is computed from the platform API, never guessed.
+Notes only influence the analysis when their author is the PR/MR author or an authorized approver, and that authorization is computed from the platform API, never guessed.
 Unauthorized notes are disclosed in the report but excluded from the analysis, so a random commenter cannot change the verdict.
-The demo report shows one: a comment insisting the release should ship regardless of the verdict, listed for transparency, labeled unauthorized, and ignored.
+The demo report shows one such note: a comment insisting the release should ship regardless of the verdict, listed for transparency, labeled unauthorized, and ignored.
 
 The full guide lives in the repo: https://github.com/gwenneg/soundings/blob/main/docs/IMPROVING_ANALYSIS.md[Improving your release readiness analysis^].
 
@@ -240,7 +240,7 @@ Everything in this post runs interactively, on a laptop, with a human reading th
 The next step is to remove the laptop.
 The entire pipeline (the skill, the isolated analyst, the helper) is designed to also run headless: a containerized Claude Code session analyzing a release unattended, as a step of the release process itself, delivering its report where the ship decision is made.
 And because the verdict is computed rather than written, it can serve as a gate in a continuous delivery pipeline: a clean verdict promotes, anything else stops the line and hands the decision back to a human, with the report already explaining why.
-That is why a normal run is already fully prompt-free, and why the injection containment doesn't rely on a human watching: the guarantees that make Soundings safe on your laptop are exactly the ones an unattended run needs.
+That's why a normal run is already fully prompt-free, and why the injection containment doesn't rely on a human watching: the guarantees that make Soundings safe on your laptop are exactly the ones an unattended run needs.
 
 I'm also exploring how to port Soundings to https://openai.com/codex/[Codex^].
 The split at the heart of the design, code for the deterministic work and an isolated agent for the reading, is not specific to Claude Code.
@@ -248,4 +248,4 @@ Stay tuned.
 
 Soundings is under active development, and feedback directly shapes what changes next: https://github.com/gwenneg/soundings/issues[issues and ideas^] are welcome on the repository.
 
-Take soundings before you ship.
+Take soundings before you ship!
