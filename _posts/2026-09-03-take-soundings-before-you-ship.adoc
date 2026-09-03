@@ -175,7 +175,7 @@ Once the data is fetched, the reading happens in a dedicated subagent called `ri
 |Cannot call them
 |===
 
-The starred cells are one fence, enforced by a hook the plugin ships.
+The starred cells all describe the same mechanism: a fence around the fetched data, enforced by a hook the plugin ships.
 It exists because read-only is not enough on its own: an injected instruction could still make the AI read `~/.ssh` or a `.env` file and leak what it finds into the report.
 The hook is backed by a registry of the exact directories the fetch step created, and the two agents sit on opposite sides of the fence: the `risk-analyst` may read only in there, every other agent may read anywhere but there.
 If anything goes wrong with the registry, the hook denies rather than allows.
