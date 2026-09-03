@@ -72,7 +72,7 @@ It assigns each concern an evidence-based severity, the higher one when evidence
 The helper validates that JSON against a schema, computes the verdict from the severities and the blocking policy, renders the report, and writes it to the file you chose.
 When it succeeds, the fetched data is deleted.
 
-image:what-soundings-does.svg[What Soundings does]
+image:what-soundings-does.svg[alt="What Soundings does", width="85%"]
 
 You can pass several compare URLs in one invocation, and they are analyzed together.
 A coordinated deployment usually spans repositories.
