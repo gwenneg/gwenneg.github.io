@@ -230,7 +230,7 @@ A `/soundings note` comment on a PR or MR hands the analysis context a diff cann
 
 Notes only influence the analysis when their author is the PR/MR author or an authorized approver, and that authorization is computed from the platform API, never guessed.
 Unauthorized notes are disclosed in the report but excluded from the analysis, so a random commenter cannot change the verdict.
-The demo report shows one such note: a comment insisting the release should ship regardless of the verdict, listed for transparency, labeled unauthorized, and ignored.
+The demo report has an example: a commenter insists the release should ship regardless of the verdict, and the guidance table lists that note as ignored.
 
 The full guide lives in the repo: https://github.com/gwenneg/soundings/blob/main/docs/IMPROVING_ANALYSIS.md[Improving your release readiness analysis^].
 
