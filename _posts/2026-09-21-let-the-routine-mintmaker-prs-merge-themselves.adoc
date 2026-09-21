@@ -261,8 +261,9 @@ Enable auto-update for claude-ichiba in the `/plugin` panel, or refresh it yours
 [[whats-next]]
 == What's next
 
-Quarkus, Spring Boot, Django and Angular are the four frameworks the plugin keeps on manual review today, one line each in the scan script, with its reason and a link.
-If your stack has a package that should never be bumped by a bot, a pull request adding its line is welcome, and so are https://github.com/gwenneg/mintmaker-automerge/issues[issues^] from your first run.
+When the scan finds Quarkus, Spring Boot, Django or Angular, the plugin recommends keeping it on manual review.
+Each framework is one line in the scan script, with its reason and a link.
+If your stack has a package that should never be automerged, a pull request adding its line is welcome, and so are https://github.com/gwenneg/mintmaker-automerge/issues[issues^] from your first run.
 
 The plugin covers the bumps a Renovate rule can judge, and the next step is an AI agent for two things a rule cannot:
 
