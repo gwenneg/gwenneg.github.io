@@ -60,7 +60,7 @@ The sections below cover what a run cannot show: the reasoning behind the design
 
 Human review of MintMaker's PRs, one per dependency bump, is expensive and slow, and it stops scaling as soon as several repositories are onboarded in Konflux.
 Delegating the reviews to an AI is tempting, but it costs tokens on every PR, and a routine one is not worth that cost.
-The third option is to let Renovate rules decide: they cost one decision, the one this plugin helps you make, and nothing per PR after that.
+The third option is to let Renovate rules decide: they cost one decision, the one this plugin helps you make, and nothing per PR after that, but they cannot handle the more complex bumps.
 
 None of the three options works well for every bump.
 Combined, they can each take the kind of bump they handle best:
