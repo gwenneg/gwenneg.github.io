@@ -1,0 +1,269 @@
+= Let the routine MintMaker PRs merge themselves
+:imagesdir: /assets/images/posts/let-the-routine-mintmaker-prs-merge-themselves
+:page-excerpt: A Claude Code plugin that lets the routine MintMaker PRs of your Konflux repositories merge on their own, and the reasoning behind its main rules.
+:page-tags: [ai, claude code, konflux, mintmaker, plugins, renovate, security, supply chain]
+:revdate: 2026-09-21
+
+[NOTE]
+====
+This post was written with the help of AI.
+====
+
+If your repository is onboarded in https://konflux-ci.dev/[Konflux^], the open source software factory that builds and releases container images, https://github.com/konflux-ci/mintmaker[MintMaker^], a service built on top of https://github.com/renovatebot/renovate[Renovate^], opens a pull request for every dependency update.
+Reviewing and approving each PR takes time, and until someone does, the update waits, security fixes included.
+
+It does not have to be that way.
+Renovate can merge a PR on its own, under conditions you choose.
+The challenge is to automate the merges without giving up security or stability, and it comes down to a series of decisions: which updates may merge on their own and which ones stay out, on which days a merge may happen, which checks gate it, and whether GitHub Actions and base images get pinned to a SHA or a digest first.
+
+I built https://github.com/gwenneg/mintmaker-automerge[MintMaker Automerge^], a Claude Code plugin, to help you make those decisions in about twenty minutes.
+It guides you through the decisions one at a time, with a recommended answer and a short explanation of what is at stake, so you end up understanding the config as well as owning it.
+This post explains what the plugin does, why it is safe, and how to try it.
+
+[TIP]
+====
+In a hurry? The <<try-it,Try it>> section has the install commands, and the run explains itself as it goes.
+====
+
+[IMPORTANT]
+====
+This plugin only works on a GitHub repository onboarded in Konflux, the only place MintMaker runs, and refuses to run on a repository that is not onboarded.
+====
+
+== What a run looks like
+
+Open Claude Code in the repository to set up, and run:
+
+[source]
+----
+/mintmaker-automerge:setup
+----
+
+A read-only script scans the repository, and then thirteen short steps ask a few questions each, with a recommended answer for every one of them.
+
+image:what-a-run-looks-like.png[alt="What a run looks like", width="800px"]
+
+Nothing is written on disk before you approve the summary.
+Nothing is pushed before you approve the pull request.
+The GitHub requirements for automerge are explained, checked when the GitHub CLI, `gh`, is logged in, and never changed by the plugin.
+Automerge is a trust decision, and every choice that matters stays yours.
+
+Every step also teaches: a note explains what the choice changes, in Renovate, in GitHub or in Konflux, and asking `why` in the session gets a longer explanation.
+
+.The tip shown at the Konflux app bypass step
+image:tip.png[alt="The tip of the Konflux app bypass step", width="800px", role=bordered]
+
+This post does not walk through the steps: the run explains them better than this post can, one screen at a time.
+The sections below cover what a run cannot show: the reasoning behind the design.
+
+== One reviewer per kind of bump
+
+Human review of MintMaker's PRs, one per dependency bump, is expensive and slow, and it stops scaling as soon as several repositories are onboarded in Konflux.
+Delegating the reviews to an AI is tempting, but it costs tokens on every PR, and a routine one is not worth that cost.
+The third option is to let Renovate rules decide: they cost one decision, the one this plugin helps you make, and nothing per PR after that, as long as the bump is one a rule can judge.
+
+None of the three options is fast, cheap, and safe at once.
+Combined, they are, each one taking the kind of bump it handles best:
+
+. Renovate rules for the routine bumps, which merge without anyone watching.
+. An AI review for the bumps a rule cannot express, such as a framework that must stay on a long-term support (LTS) version, or an upgrade that comes with a migration guide to apply.
+. A human for the riskiest bumps, and for the ones too complex for an AI.
+
+The plugin does the first part today, and the <<whats-next,last section>> comes back to the second.
+
+== What lands in the repository
+
+This is the `renovate.jsonc` a run writes at the root of the repository for a Quarkus service with an npm frontend, Dockerfiles on Red Hat's UBI base images, and a CI workflow using `actions/checkout` and `actions/setup-java`, trimmed and stripped of its comments:
+
+[source,json,title=renovate.jsonc]
+----
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["helpers:pinGitHubActionDigests"], // <1>
+  "platformAutomerge": false, // <2>
+  "ignoreTests": false, // <3>
+  "tekton": { // <4>
+    "automerge": true,
+    "schedule": ["at any time"] // <5>
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["dockerfile"],
+      "pinDigests": true // <6>
+    },
+    {
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["digest", "patch", "minor"],
+      "automerge": true // <7>
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "matchDepNames": ["actions/checkout", "actions/setup-java"], // <8>
+      "automerge": true
+    },
+    {
+      "matchManagers": ["maven"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true
+    },
+    {
+      "matchManagers": ["maven"],
+      "matchPackageNames": ["io.quarkus*"],
+      "automerge": false // <9>
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true
+    }
+  ]
+}
+----
+<1> Pins GitHub actions to commit SHAs, a security measure explained in the <<pinning,pinning section>>.
+<2> Renovate merges each PR itself instead of leaving it to GitHub's auto-merge feature, for a reason the <<own-merge,merge section>> explains.
+<3> The merge gate: every check on the PR must pass, required or not. The <<own-merge,merge section>> explains the alternative.
+<4> Konflux pipeline updates in `.tekton/`.
+<5> Overrides MintMaker's default, which batches Konflux pipeline updates on Saturdays.
+<6> Pins `FROM` lines to `tag@sha256`, so rebuilds of a tag arrive as digest PRs, in a rule of its own because Renovate decides the pin before it knows the update type.
+<7> Digest, patch and minor bumps of the base images merge on their own, since the Konflux PR build tests the image.
+<8> Only the actions named here are automerged, because an action runs arbitrary code in CI with the workflow's secrets. Those maintained by GitHub, under `actions/` and `github/`, are the recommended set. A third-party one is a trust decision of its own. Patch and minor only, so a moved tag with no version change never merges alone.
+<9> Quarkus stays manual: a Renovate rule cannot tell an https://quarkus.io/releases/[LTS version^] from another, and a Quarkus update can come with a migration guide to check and apply.
+
+The `renovate.jsonc` file itself is never automerged: any change to it, from a teammate or from Renovate's own migration PRs, is an ordinary PR that needs a review, so the bot can never loosen its own rules.
+
+The plugin also adds a GitHub workflow under `.github/workflows/` that runs MintMaker's own https://github.com/konflux-ci/renovate-config-validator-action[config validator^] whenever the file changes, unless the repository already has one.
+That validator catches syntax and schema errors, and settings Renovate has retired, but not a wrong name, so the plugin checks the names itself before the file is committed, since a misspelled package or action would pass and match nothing.
+
+== The release-age delay
+
+Most bumps the file above automerges get one more protection, with two exceptions covered below.
+The file does not mention it because MintMaker sets it for you: Renovate can wait before it opens a PR for a new release, a setting called the https://docs.renovatebot.com/configuration-options/#minimumreleaseage[release-age delay^].
+MintMaker's global configuration sets a default for every onboarded repository.
+A compromised version is usually caught and pulled within days, and during that time Renovate proposes nothing, so the compromised version never even runs in your CI.
+A compromise discovered weeks later gets through whatever the wait: the https://www.openwall.com/lists/oss-security/2024/03/29/4[xz backdoor^], planted in a compression library that Linux distributions load into their SSH server, sat unnoticed for five weeks in 2024.
+
+[WARNING]
+====
+Renovate does not delay vulnerability fixes by default, and MintMaker keeps that default: a fix that matches your automerge rules merges as soon as the checks pass.
+An advisory can be wrong or planted, so a fix that merged without the delay is worth a look afterwards.
+====
+
+[WARNING]
+====
+The delay does not apply to base images outside Docker Hub: Renovate only learns image publish dates there, and MintMaker treats a release without one as old enough.
+An image from `registry.access.redhat.com` or `quay.io` is proposed the day it is rebuilt.
+====
+
+[[pinning]]
+== Why actions get pinned to a SHA, and images to a digest
+
+The delay guards against a new release that turns out bad, and does nothing against a version that already exists and changes under you, which is what pinning is for.
+
+`actions/checkout@v4` tells CI to run version 4 of the action, but `v4` is a movable label, so CI runs whatever it points at today.
+If someone moves it to malicious code, CI runs that with no PR to warn you.
+This is what happened to the https://github.com/advisories/GHSA-mrrh-fwg8-r2c3[tj-actions/changed-files action^] in March 2025: release tags were moved to a commit that read secrets from the runner, and the workflows that referenced the action by tag ran it, while those pinned to a commit SHA did not.
+A commit SHA cannot be moved, so the plugin proposes to pin every action to one, and a hijacked tag can then only arrive as a PR that never automerges.
+
+A base image tag such as `ubi9/openjdk-21:1.20` can be rebuilt by the registry at any time, and your next build pulls the new image with no PR and no test.
+A digest, the hash of one exact build, cannot change, so once a `FROM` line is pinned to `tag@sha256`, every rebuild arrives as a PR that the Konflux PR pipeline builds and tests before it merges.
+Since those images get no release-age delay, the Konflux pipeline is their only protection: keep it among the checks a merge waits for, which the <<own-merge,next section>> covers.
+
+[[own-merge]]
+== Why Renovate merges the PR itself
+
+Renovate's default, which MintMaker keeps, leaves the merge to GitHub's https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/automatically-merging-a-pull-request[auto-merge feature^], when the repository allows it.
+A GitHub ruleset can let some accounts, called bypass actors, skip a rule such as the required approval, and the Konflux app can be one of them.
+When that bypass is what satisfies the approval rule, GitHub's auto-merge never completes: the PR stays blocked with every check green.
+This is a bug first reported in https://zenn.dev/shunsuke_suzuki/scraps/ca7028a7f4fb73[January 2025^] and https://github.com/orgs/community/discussions/162623#discussioncomment-17756926[reproduced with a clean test^] on GitHub's forum in July 2026, with no answer from GitHub and no fix as of September 2026.
+So the plugin turns the feature off, with `platformAutomerge` set to `false`, and Renovate merges the PR itself on a later MintMaker run, which comes every four hours, so hours after the checks went green rather than minutes.
+The API call Renovate uses to merge respects the bypass, unlike the auto-merge feature, so the Konflux app can merge on a branch that requires an approval once it is allowed to skip that rule.
+
+By default, Renovate merges only once every check on the PR is green, required or not, and the plugin recommends keeping it that way: a red check is worth a look before anything merges.
+It means that a failure unrelated to the PR, a vulnerability scan on a new advisory for instance, holds every automerge, which happened on one of our repositories.
+The alternative, https://docs.renovatebot.com/configuration-options/#ignoretests[ignoreTests^] set to `true`, lets Renovate merge as soon as the branch's required checks pass, whatever the rest say, so the list of required checks has to be chosen carefully.
+With no required checks at all, a PR merges on red CI.
+The pull request the plugin opens lists what you acknowledged: the bypass, and the required checks if you chose `ignoreTests`, so a reviewer can verify them before merging.
+
+== How I made it reliable
+
+The facts of a run come from a script, not from the model.
+A read-only shell script goes through the repository for its ecosystems, base images, actions, branches and existing config, asks GitHub for the branch rules when `gh` is logged in, and prints a report that the steps read from, so two runs on the same repository see the same facts.
+
+The model only does what a script cannot: it frames each decision and writes the config from your answers.
+That part is not deterministic, so the plugin repository holds evals, automated tests that run the skill as a person would.
+Seven small repositories cover the cases, from a Quarkus service with a `dependabot.yml` to a Go module with an old config to migrate, and one of them is not on Konflux, so the skill must stop.
+A script acts as the user through the https://code.claude.com/docs/en/agent-sdk/user-input[Agent SDK^], answers every menu, and then checks the transcript and the working tree: the thirteen screens came in order, nothing was written before the approval, the config holds the expected rules, and nothing was committed.
+
+The evals run on every pull request that touches the skill.
+A run fails now and then, and a failing repository gets one rerun before the job goes red.
+
+== Why the Renovate config is not a shared preset
+
+Renovate can load rules from a preset hosted in another repository, and MintMaker itself https://konflux-ci.dev/docs/mintmaker/user/#configuration-presets[publishes presets^] that way, so a shared automerge preset may look like a good idea for an organization.
+The plugin does the opposite, one self-contained file per repository, and I want to explain why.
+
+For a shared preset:
+
+* One change reaches every repository at once, which matters when the policy itself changes: a setting such as `platformAutomerge` flipping for every repository is one commit in a preset, and one PR per repository otherwise.
+* Turning automerge on for dependency updates takes one line in a config, where the plugin asks for twenty minutes of decisions.
+
+Against it:
+
+* The decision belongs to the repository owner, and a preset moves it to whoever can merge in the shared repository, with no PR in the repository that uses the preset, unless that repository pins it to a version.
+* The rules that matter most are repository-specific: the actions allowed by name, the packages kept manual, the image choices.
+* The file is small and almost never changes, so there is no stream of changes to centralize.
+* A preset adds a second repository to read, and a precedence question on top of MintMaker's global configuration, for whoever asks why a PR merged on its own.
+
+What the plugin shares is the reasoning: the same questions and the same recommended answers, applied to what each repository contains.
+
+I am open to being wrong about this: if a shared preset works for your organization, please reach out or use the comments to change my mind.
+
+[[try-it]]
+== Try it
+
+You need Claude Code and a GitHub repository onboarded in Konflux.
+A `gh` login is optional.
+With it, the run checks the branch rules on GitHub for you and opens the pull request at the end.
+Without it, the run uses a GitHub token from your environment if there is one, and otherwise gives you a link and the text to paste to open the pull request yourself.
+When your branch requires an approval, the merges start once you have allowed the Konflux app to skip that rule yourself, which the run describes, and checks when `gh` is logged in.
+
+Install the plugin from a Claude Code session:
+
+[source]
+----
+/plugin marketplace add gwenneg/claude-ichiba <1>
+/plugin install mintmaker-automerge@claude-ichiba
+/reload-plugins
+----
+<1> Full disclosure: https://github.com/gwenneg/claude-ichiba[claude-ichiba^] is my own plugin marketplace.
+It also hosts https://github.com/gwenneg/soundings[Soundings^], a release risk plugin link:/2026/09/03/take-soundings-before-you-ship.html[I wrote about recently].
+
+Then, from the repository you want to set up:
+
+[source]
+----
+/mintmaker-automerge:setup
+----
+
+Claude Code only updates plugins from its official marketplace automatically.
+Enable auto-update for claude-ichiba in the `/plugin` panel, or refresh it yourself from time to time:
+
+[source]
+----
+/plugin marketplace update claude-ichiba
+/reload-plugins
+----
+
+[[whats-next]]
+== What's next
+
+Quarkus, Spring Boot, Django and Angular are the four frameworks the plugin keeps on manual review today, one line each in the scan script, with its reason and a link.
+If your stack has a package that should never be bumped by a bot, a pull request adding its line is welcome, and so are https://github.com/gwenneg/mintmaker-automerge/issues[issues^] from your first run.
+
+The plugin covers the bumps a Renovate rule can judge, and the next step is an AI agent for two things a rule cannot:
+
+* The bumps that need reading, a framework kept on its LTS version with a migration guide to apply: the agent picks the target, applies the guide, runs the tests, and opens a PR that a human reviews.
+* The PRs that qualify for automerge and sit open on a failed check: the agent reads the failure, tells a flaky job from a real break, and pushes the fix so the checks run again.
+
+If you try it on one of your repositories, please let me know how the run went.
