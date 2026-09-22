@@ -29,7 +29,7 @@ This post explains what the plugin does, why I think you should try it on your n
 ====
 Red Hat associates: this post is about the general-purpose Soundings plugin.
 To analyze the deployment MRs you ship through app-interface, pair it with the https://github.com/gwenneg/soundings-app-interface[soundings-app-interface^] adapter.
-I'll publish a dedicated post about that adapter soon.
+That adapter has its own internal post: https://url.corp.redhat.com/a1f49a1[Is this deployment MR safe to merge? Ask a Claude Code plugin.^]
 ====
 
 == What Soundings does
