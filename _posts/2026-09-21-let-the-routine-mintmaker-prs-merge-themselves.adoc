@@ -99,8 +99,13 @@ This is the `renovate.jsonc` file a run writes at the root of the repo for a Qua
     },
     {
       "matchManagers": ["github-actions"],
+      "matchDepTypes": ["action"],
+      "rangeStrategy": "pin" // <8>
+    },
+    {
+      "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["patch", "minor"],
-      "matchDepNames": ["actions/checkout", "actions/setup-java"], // <8>
+      "matchDepNames": ["actions/checkout", "actions/setup-java"], // <9>
       "automerge": true
     },
     {
@@ -111,7 +116,7 @@ This is the `renovate.jsonc` file a run writes at the root of the repo for a Qua
     {
       "matchManagers": ["maven"],
       "matchPackageNames": ["io.quarkus*"],
-      "automerge": false // <9>
+      "automerge": false // <10>
     },
     {
       "matchManagers": ["npm"],
@@ -128,8 +133,9 @@ This is the `renovate.jsonc` file a run writes at the root of the repo for a Qua
 <5> Overrides MintMaker's default, which batches Konflux pipeline updates on Saturdays.
 <6> Pins `FROM` lines to `tag@sha256`, so rebuilds of a tag arrive as digest PRs, in a rule of its own because Renovate decides the pin before it knows the update type.
 <7> Digest, patch and minor bumps of the base images merge on their own, since the Konflux PR build tests the image.
-<8> Only the actions named here are automerged, because an action runs arbitrary code in CI with the workflow's secrets. Those maintained by GitHub, under `actions/` and `github/`, are the recommended set. A third-party one is a trust decision of its own. Patch and minor only, so a moved tag with no version change never merges alone.
-<9> Quarkus stays manual: a Renovate rule cannot tell an https://quarkus.io/releases/[LTS version^] from another, and a Quarkus update can come with a migration guide to check and apply.
+<8> Pins each action to its full version, `v4.38.1` rather than `v4`, in one manual PR, for a reason explained in <<pinning,Why actions get pinned to a SHA, and images to a digest>>.
+<9> Only the actions named here are automerged, because an action runs arbitrary code in CI with the workflow's secrets. Those maintained by GitHub, under `actions/` and `github/`, are the recommended set. A third-party one is a trust decision of its own. Patch and minor only, so a moved tag with no version change never merges alone.
+<10> Quarkus stays manual: a Renovate rule cannot tell an https://quarkus.io/releases/[LTS version^] from another, and a Quarkus update can come with a migration guide to check and apply.
 
 The `renovate.jsonc` file itself is never automerged: any change to it, from a teammate or from Renovate's own migration PRs, is an ordinary PR that needs a review, so the bot can never loosen its own rules.
 
@@ -166,10 +172,16 @@ The delay guards against a new release that turns out bad, and does nothing agai
 If someone moves it to malicious code, CI runs that with no PR to warn you.
 This is what happened to the https://github.com/advisories/GHSA-mrrh-fwg8-r2c3[tj-actions/changed-files action^] in March 2025: release tags were moved to a commit that read secrets from the runner, and the workflows that referenced the action by tag ran it, while those pinned to a commit SHA did not.
 A commit SHA cannot be moved, so the plugin proposes to pin every action to one, and a hijacked tag can then only arrive as a PR that never automerges.
+The version next to the SHA has to be a full one, `v4.38.1` rather than `v4`.
+Renovate never changes a floating tag such as `v4`, so every release would arrive as a digest PR, the same shape as a moved tag.
+The plugin's `rangeStrategy` rule pins each action to its full version in one manual PR.
 
 A base image tag such as `ubi9/openjdk-21:1.20` can be rebuilt by the registry at any time, and your next build pulls the new image with no PR and no test.
 A digest, the hash of one exact build, cannot change, so once a `FROM` line is pinned to `tag@sha256`, every rebuild arrives as a PR that the Konflux PR pipeline builds and tests before it merges.
 Since those images get no release-age delay, the Konflux pipeline is their only protection: keep it among the checks a merge waits for, as covered in <<own-merge,Why Renovate merges the PR itself>>.
+
+The pinning rules, for actions and for images, stay in the file once everything is pinned.
+They cost nothing then, and an action or image added later on a movable tag gets its pin PR.
 
 [[own-merge]]
 == Why Renovate merges the PR itself
