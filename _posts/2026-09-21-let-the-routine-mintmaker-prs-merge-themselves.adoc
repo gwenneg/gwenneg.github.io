@@ -189,7 +189,8 @@ They cost nothing then, and an action or image added later on a movable tag gets
 Renovate's default, which MintMaker keeps, leaves the merge to GitHub's https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/incorporating-changes-from-a-pull-request/automatically-merging-a-pull-request[auto-merge feature^], when the repository allows it.
 A GitHub ruleset can let some accounts, called bypass actors, skip a rule such as the required approval, and the Konflux app can be one of them.
 When that bypass is what satisfies the approval rule, GitHub's auto-merge never completes: the PR stays blocked with every check green.
-This is a bug first reported in https://zenn.dev/shunsuke_suzuki/scraps/ca7028a7f4fb73[January 2025^] and https://github.com/orgs/community/discussions/162623#discussioncomment-17756926[reproduced with a clean test^] on GitHub's forum in July 2026, with no answer from GitHub and no fix as of September 2026.
+This bug has been reported since January 2025, and I https://github.com/orgs/community/discussions/208718[reproduced it^] on a public test repository in September 2026, with rulesets and with classic branch protection.
+There is no fix as of September 2026.
 So the plugin turns the feature off, with `platformAutomerge` set to `false`, and Renovate merges the PR itself on a later MintMaker run, which comes every four hours, so hours after the checks went green rather than minutes.
 The API call Renovate uses to merge respects the bypass, unlike the auto-merge feature, so the Konflux app can merge on a branch that requires an approval once it is allowed to skip that rule.
 
