@@ -39,7 +39,7 @@ Open Claude Code in the repository where you want to enable automerge, and run:
 /mintmaker-automerge:setup
 ----
 
-A read-only script scans the repository, and then thirteen short steps ask a few questions each, with a recommended answer for every one of them.
+A read-only script scans the repository, and then fourteen short steps ask a few questions each, with a recommended answer for all but one of them.
 
 image:what-a-run-looks-like.png[alt="What a run looks like"]
 
@@ -95,47 +95,54 @@ This is the `renovate.jsonc` file a run writes at the root of the repo for a Qua
     {
       "matchManagers": ["dockerfile"],
       "matchUpdateTypes": ["digest", "patch", "minor"],
-      "automerge": true // <7>
+      "automerge": true, // <7>
+      "groupName": "base images" // <8>
     },
     {
       "matchManagers": ["github-actions"],
       "matchDepTypes": ["action"],
-      "rangeStrategy": "pin" // <8>
+      "rangeStrategy": "pin" // <9>
     },
     {
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["patch", "minor"],
-      "matchDepNames": ["actions/checkout", "actions/setup-java"], // <9>
-      "automerge": true
+      "matchDepNames": ["actions/checkout", "actions/setup-java"], // <10>
+      "automerge": true,
+      "groupName": "GitHub Actions"
     },
     {
       "matchManagers": ["maven"],
       "matchUpdateTypes": ["patch", "minor"],
-      "automerge": true
+      "automerge": true,
+      "groupName": "Maven dependencies"
     },
     {
       "matchManagers": ["maven"],
       "matchPackageNames": ["io.quarkus*"],
-      "automerge": false // <10>
+      "automerge": false, // <11>
+      "groupName": null // <12>
     },
     {
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["patch", "minor"],
-      "automerge": true
+      "automerge": true,
+      "groupName": "npm dependencies"
     }
   ]
 }
 ----
-<1> Pins GitHub Actions to commit SHAs, a security measure explained in <<pinning,Why actions get pinned to a SHA, and images to a digest>>.
-<2> Renovate merges each PR itself instead of leaving it to GitHub's auto-merge feature, for a reason explained in <<own-merge,Why Renovate merges the PR itself>>.
+<1> Pins GitHub Actions to commit SHAs, a security measure. See <<pinning,Why actions get pinned to a SHA, and images to a digest>> for more details.
+<2> Renovate merges each PR itself instead of leaving it to GitHub's auto-merge feature. See <<own-merge,Why Renovate merges the PR itself>> for more details.
 <3> The merge gate: every check on the PR must pass, required or not. See <<own-merge,Why Renovate merges the PR itself>> for the alternative.
 <4> Konflux pipeline updates in `.tekton/`.
 <5> Overrides MintMaker's default, which batches Konflux pipeline updates on Saturdays.
 <6> Pins `FROM` lines to `tag@sha256`, so rebuilds of a tag arrive as digest PRs, in a rule of its own because Renovate decides the pin before it knows the update type.
 <7> Digest, patch and minor bumps of the base images merge on their own, since the Konflux PR build tests the image.
-<8> Pins each action to its full version, `v4.38.1` rather than `v4`, in one manual PR, for a reason explained in <<pinning,Why actions get pinned to a SHA, and images to a digest>>.
-<9> Only the actions named here are automerged, because an action runs arbitrary code in CI with the workflow's secrets. Those maintained by GitHub, under `actions/` and `github/`, are the recommended set. A third-party one is a trust decision of its own. Patch and minor only, so a moved tag with no version change never merges alone.
-<10> Quarkus stays manual: a Renovate rule cannot tell an https://quarkus.io/releases/[LTS version^] from another, and a Quarkus update can come with a migration guide to check and apply.
+<8> The digest, patch and minor bumps of the base images share one PR, "Update base images". See <<throughput,Automerge with Renovate is slow by default, but the plugin can speed it up>> for more details.
+<9> Pins each action to its full version, `v4.38.1` rather than `v4`, in one manual PR. See <<pinning,Why actions get pinned to a SHA, and images to a digest>> for more details.
+<10> Only the actions named here are automerged, because an action runs arbitrary code in CI with the workflow's secrets. Those maintained by GitHub, under `actions/` and `github/`, are the recommended set. A third-party one is a trust decision of its own. Patch and minor only, so a moved tag with no version change never merges alone.
+<11> Quarkus stays manual: a Renovate rule cannot tell an https://quarkus.io/releases/[LTS version^] from another, and a Quarkus update can come with a migration guide to check and apply.
+<12> Quarkus opts out of the Maven group: a group only automerges when every member does, so a dependency that never automerges would hold it.
 
 The `renovate.jsonc` file itself is never automerged: any change to it, from a teammate or from Renovate's own migration PRs, is an ordinary PR that needs a review, so the bot can never loosen its own rules.
 
@@ -191,7 +198,7 @@ A GitHub ruleset can let some accounts, called bypass actors, skip a rule such a
 When that bypass is what satisfies the approval rule, GitHub's auto-merge never completes: the PR stays blocked with every check green.
 This bug has been reported since January 2025, and I https://github.com/orgs/community/discussions/208718[reproduced it^] on a public test repository in September 2026, with rulesets and with classic branch protection.
 There is no fix as of September 2026.
-So the plugin turns the feature off, with `platformAutomerge` set to `false`, and Renovate merges the PR itself on a later MintMaker run, which comes every four hours, so hours after the checks went green rather than minutes.
+So the plugin turns the feature off, with `platformAutomerge` set to `false`, and Renovate merges the PR itself on a later MintMaker run, so hours after the checks went green rather than minutes.
 The API call Renovate uses to merge respects the bypass, unlike the auto-merge feature, so the Konflux app can merge on a branch that requires an approval once it is allowed to skip that rule.
 
 By default, Renovate merges only once every check on the PR is green, required or not, and the plugin recommends keeping it that way: a red check is worth a look before anything merges.
@@ -199,6 +206,36 @@ It means that a failure unrelated to the PR, a vulnerability scan on a new advis
 The alternative, https://docs.renovatebot.com/configuration-options/#ignoretests[ignoreTests^] set to `true`, lets Renovate merge as soon as the branch's `Required` checks pass, whatever the rest say, so the list of required checks has to be chosen carefully.
 With no required checks at all, a PR merges on red CI.
 The pull request the plugin opens lists what you acknowledged: the bypass, and the required checks if you chose `ignoreTests`, so a reviewer can verify them before merging.
+
+[[throughput]]
+== Automerge with Renovate is slow by default, but the plugin can speed it up
+
+Renovate https://docs.renovatebot.com/key-concepts/automerge/#renovate-automerges-take-time[merges at most one PR per run^].
+After a merge, it stops and starts the job once more.
+In that second round, it rebases every other open automerge PR and their checks run again, because an automerge PR is https://docs.renovatebot.com/configuration-options/#rebasewhen[rebased whenever the base branch moves^] by default.
+The PRs on manual review are left alone.
+MintMaker runs every four hours, twice a day on busy Konflux clusters.
+So a repository with many green automerge PRs gets one merge per run, and each merge or human push rebuilds every other automerge PR.
+
+To make the automerges land faster, the plugin's "Automerge throughput" step offers two settings.
+
+The first is batching: one https://docs.renovatebot.com/configuration-options/#groupname[group^] per ecosystem.
+One merge then includes every bump of that ecosystem, and there are few branches left to rebuild.
+The cost: if one bump fails a check, the whole group waits until that bump is fixed or excluded with a rule of its own.
+A group only automerges when every member does, so the packages that never automerge opt out of their group with `null`.
+The plugin recommends one PR per ecosystem.
+
+The second is the rebase rule.
+Rebasing only on conflict removes the rebuilds, and two PRs can merge per run, one in each round.
+But each PR then merges as it was tested, against the base it was opened on, not against the base it lands on.
+Renovate's documentation advises against `rebaseWhen: conflicted` when automerge is on.
+It is, however, what a manual merge does today, unless the branch rules require branches to be up to date, in which case such a PR cannot merge at all.
+The plugin recommends the default and offers rebasing only on conflict as the risky choice.
+With that choice, the config also names a https://docs.renovatebot.com/configuration-options/#keepupdatedlabel[label^], `keep-updated`.
+Add it to a Renovate PR in GitHub, and Renovate rebases that PR whenever the base branch moves, whatever the rule says for the others.
+
+GitHub has two features that would give both speed and retesting, auto-merge and the merge queue.
+Neither works for an unattended merge on a branch that requires an approval: auto-merge for the reason given in <<own-merge,Why Renovate merges the PR itself>>, and the merge queue because it refuses a PR whose approval comes from a bypass just the same.
 
 == How I made it reliable
 
@@ -208,7 +245,7 @@ A read-only shell script goes through the repository for its ecosystems, base im
 The model only does what a script cannot: it frames each decision and writes the config from your answers.
 That part is not deterministic, so the plugin repository holds evals, automated tests that run the skill as a person would.
 Seven small repositories cover the cases, from a Quarkus service with a `dependabot.yml` to a Go module with an old config to migrate, and one of them is not on Konflux, so the skill must stop.
-A script acts as the user through the https://code.claude.com/docs/en/agent-sdk/user-input[Agent SDK^], answers every menu, and then checks the transcript and the working tree: the thirteen screens came in order, nothing was written before the approval, the config holds the expected rules, and nothing was committed.
+A script acts as the user through the https://code.claude.com/docs/en/agent-sdk/user-input[Agent SDK^], answers every menu, and then checks the transcript and the working tree: the fourteen screens came in order, nothing was written before the approval, the config holds the expected rules, and nothing was committed.
 
 The evals run on every pull request that touches the skill.
 A run fails now and then, and a failing repository gets one rerun before the job goes red.
