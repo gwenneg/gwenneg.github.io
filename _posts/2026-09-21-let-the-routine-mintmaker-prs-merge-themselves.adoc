@@ -217,7 +217,7 @@ MintMaker runs every four hours, twice a day on busy Konflux clusters, so a repo
 
 To make the automerges land faster, the plugin's "Automerge throughput" step offers two settings.
 
-The first is batching: one https://docs.renovatebot.com/configuration-options/#groupname[group^] per ecosystem, so one merge lands every bump of that ecosystem, and few branches are left to rebuild.
+The first is batching: one https://docs.renovatebot.com/configuration-options/#groupname[group^] per ecosystem, so one merge includes every bump of that ecosystem, and few branches are left to rebuild.
 The cost is that one red bump holds its whole group until it is fixed or excluded with a rule of its own.
 A group only automerges when every member does, which is why the packages that never automerge opt out of their group with `null`.
 The plugin recommends one PR per ecosystem.
