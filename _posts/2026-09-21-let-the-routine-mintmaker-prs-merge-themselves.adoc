@@ -211,26 +211,31 @@ The pull request the plugin opens lists what you acknowledged: the bypass, and t
 == Why the automerges land one per run
 
 Renovate https://docs.renovatebot.com/key-concepts/automerge/#renovate-automerges-take-time[merges at most one PR per run^].
-After a merge, it stops, restarts the job once, and in that second round rebases every other open automerge PR and reruns its checks, since by default an automerge PR is https://docs.renovatebot.com/configuration-options/#rebasewhen[rebased whenever the base branch moves^].
-The PRs on manual review are left where they are.
-MintMaker runs every four hours, twice a day on busy Konflux clusters, so a repository with many green automerge PRs drains at one merge per run, and every merge or human push rebuilds every other automerge PR.
+After a merge, it stops and starts the job once more.
+In that second round, it rebases every other open automerge PR and their checks run again, because an automerge PR is https://docs.renovatebot.com/configuration-options/#rebasewhen[rebased whenever the base branch moves^] by default.
+The PRs on manual review are left alone.
+MintMaker runs every four hours, twice a day on busy Konflux clusters.
+So a repository with many green automerge PRs gets one merge per run, and each merge or human push rebuilds every other automerge PR.
 
 To make the automerges land faster, the plugin's "Automerge throughput" step offers two settings.
 
-The first is batching: one https://docs.renovatebot.com/configuration-options/#groupname[group^] per ecosystem, so one merge includes every bump of that ecosystem, and few branches are left to rebuild.
-The cost is that one red bump holds its whole group until it is fixed or excluded with a rule of its own.
-A group only automerges when every member does, which is why the packages that never automerge opt out of their group with `null`.
+The first is batching: one https://docs.renovatebot.com/configuration-options/#groupname[group^] per ecosystem.
+One merge then includes every bump of that ecosystem, and there are few branches left to rebuild.
+The cost: if one bump fails a check, the whole group waits until that bump is fixed or excluded with a rule of its own.
+A group only automerges when every member does, so the packages that never automerge opt out of their group with `null`.
 The plugin recommends one PR per ecosystem.
 
 The second is the rebase rule.
-Rebasing only on conflict removes the rebuilds and lets two PRs merge per run, one in each round.
-Each PR then merges as tested against the base it was opened on, not against the base it lands on.
+Rebasing only on conflict removes the rebuilds, and two PRs can merge per run, one in each round.
+But each PR then merges as it was tested, against the base it was opened on, not against the base it lands on.
 Renovate's documentation advises against `rebaseWhen: conflicted` when automerge is on.
-It is also what a manual merge does today, unless the branch rules require branches to be up to date, and then such a PR cannot merge at all.
+It is what a manual merge does today, unless the branch rules require branches to be up to date, in which case such a PR cannot merge at all.
 The plugin recommends the default and offers rebasing only on conflict as the risky choice.
-With that choice, the config also names a https://docs.renovatebot.com/configuration-options/#keepupdatedlabel[label^], `keep-updated`: add it to a Renovate PR in GitHub, and Renovate rebases that PR whenever the base branch moves, whatever the rule says for the others.
+With that choice, the config also names a https://docs.renovatebot.com/configuration-options/#keepupdatedlabel[label^], `keep-updated`.
+Add it to a Renovate PR in GitHub, and Renovate rebases that PR whenever the base branch moves, whatever the rule says for the others.
 
-The two GitHub features that would give both speed and retesting are out of reach for an unattended merge on a branch that requires an approval: auto-merge, see <<own-merge,Why Renovate merges the PR itself>>, and the merge queue, which refuses a PR whose approval comes from a bypass just the same.
+GitHub has two features that would give both speed and retesting, auto-merge and the merge queue.
+Neither works for an unattended merge on a branch that requires an approval: auto-merge for the reason given in <<own-merge,Why Renovate merges the PR itself>>, and the merge queue because it refuses a PR whose approval comes from a bypass just the same.
 
 == How I made it reliable
 
