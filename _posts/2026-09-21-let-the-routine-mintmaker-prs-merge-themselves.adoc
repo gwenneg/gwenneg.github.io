@@ -215,7 +215,7 @@ After a merge, it stops, restarts the job once, and in that second round rebases
 The PRs on manual review are left where they are.
 MintMaker runs every four hours, twice a day on busy Konflux clusters, so a repository with many green automerge PRs drains at one merge per run, and every merge or human push rebuilds every other automerge PR.
 
-To make the automerges land faster, the plugin's Automerge throughput step offers two settings.
+To make the automerges land faster, the plugin's "Automerge throughput" step offers two settings.
 
 The first is batching: one https://docs.renovatebot.com/configuration-options/#groupname[group^] per ecosystem, so one merge lands every bump of that ecosystem, and few branches are left to rebuild.
 The cost is that one red bump holds its whole group until it is fixed or excluded with a rule of its own.
