@@ -138,7 +138,7 @@ This is the `renovate.jsonc` file a run writes at the root of the repo for a Qua
 <5> Overrides MintMaker's default, which batches Konflux pipeline updates on Saturdays.
 <6> Pins `FROM` lines to `tag@sha256`, so rebuilds of a tag arrive as digest PRs, in a rule of its own because Renovate decides the pin before it knows the update type.
 <7> Digest, patch and minor bumps of the base images merge on their own, since the Konflux PR build tests the image.
-<8> The digest, patch and minor bumps of the base images share one PR, "Update base images". See <<throughput,Automerge with Renovate is slow by default, but the plugin can speed it up>> for more details.
+<8> The digest, patch and minor bumps of the base images share one PR, "Update base images". See <<throughput,Automerge with Renovate is slow by default>> for more details.
 <9> Pins each action to its full version, `v4.38.1` rather than `v4`, in one manual PR. See <<pinning,Why actions get pinned to a SHA, and images to a digest>> for more details.
 <10> Only the actions named here are automerged, because an action runs arbitrary code in CI with the workflow's secrets. Those maintained by GitHub, under `actions/` and `github/`, are the recommended set. A third-party one is a trust decision of its own. Patch and minor only, so a moved tag with no version change never merges alone.
 <11> Quarkus stays manual: a Renovate rule cannot tell an https://quarkus.io/releases/[LTS version^] from another, and a Quarkus update can come with a migration guide to check and apply.
@@ -208,7 +208,7 @@ With no required checks at all, a PR merges on red CI.
 The pull request the plugin opens lists what you acknowledged: the bypass, and the required checks if you chose `ignoreTests`, so a reviewer can verify them before merging.
 
 [[throughput]]
-== Automerge with Renovate is slow by default, but the plugin can speed it up
+== Automerge with Renovate is slow by default
 
 Renovate https://docs.renovatebot.com/key-concepts/automerge/#renovate-automerges-take-time[merges at most one PR per run^].
 After a merge, it stops and starts the job once more.
