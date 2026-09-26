@@ -210,7 +210,7 @@ The pull request the plugin opens lists what you acknowledged: the bypass, and t
 [[throughput]]
 == Why the automerges land one per run
 
-Renovate https://docs.renovatebot.com/key-concepts/automerge/[merges at most one PR per run^].
+Renovate https://docs.renovatebot.com/key-concepts/automerge/#renovate-automerges-take-time[merges at most one PR per run^].
 After a merge it stops, restarts the job once, and in that second pass rebases every other open automerge PR and reruns its checks, since by default an automerge PR is https://docs.renovatebot.com/configuration-options/#rebasewhen[rebased whenever the base branch moves^].
 The PRs on manual review are left where they are.
 MintMaker runs every four hours, twice a day on busy clusters, so a repository with many green automerge PRs drains at one merge per run, and every merge or human push rebuilds every other automerge PR.
