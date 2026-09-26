@@ -131,15 +131,15 @@ This is the `renovate.jsonc` file a run writes at the root of the repo for a Qua
   ]
 }
 ----
-<1> Pins GitHub Actions to commit SHAs, a security measure explained in <<pinning,Why actions get pinned to a SHA, and images to a digest>>.
-<2> Renovate merges each PR itself instead of leaving it to GitHub's auto-merge feature, for a reason explained in <<own-merge,Why Renovate merges the PR itself>>.
+<1> Pins GitHub Actions to commit SHAs, a security measure. See <<pinning,Why actions get pinned to a SHA, and images to a digest>> for more details.
+<2> Renovate merges each PR itself instead of leaving it to GitHub's auto-merge feature. See <<own-merge,Why Renovate merges the PR itself>> for more details.
 <3> The merge gate: every check on the PR must pass, required or not. See <<own-merge,Why Renovate merges the PR itself>> for the alternative.
 <4> Konflux pipeline updates in `.tekton/`.
 <5> Overrides MintMaker's default, which batches Konflux pipeline updates on Saturdays.
 <6> Pins `FROM` lines to `tag@sha256`, so rebuilds of a tag arrive as digest PRs, in a rule of its own because Renovate decides the pin before it knows the update type.
 <7> Digest, patch and minor bumps of the base images merge on their own, since the Konflux PR build tests the image.
-<8> The digest, patch and minor bumps of the base images share one PR, "Update base images", for a reason explained in <<throughput,Why the automerges land one per run, and what to do about it>>.
-<9> Pins each action to its full version, `v4.38.1` rather than `v4`, in one manual PR, for a reason explained in <<pinning,Why actions get pinned to a SHA, and images to a digest>>.
+<8> The digest, patch and minor bumps of the base images share one PR, "Update base images". See <<throughput,Why the automerges land one per run, and what to do about it>> for more details.
+<9> Pins each action to its full version, `v4.38.1` rather than `v4`, in one manual PR. See <<pinning,Why actions get pinned to a SHA, and images to a digest>> for more details.
 <10> Only the actions named here are automerged, because an action runs arbitrary code in CI with the workflow's secrets. Those maintained by GitHub, under `actions/` and `github/`, are the recommended set. A third-party one is a trust decision of its own. Patch and minor only, so a moved tag with no version change never merges alone.
 <11> Quarkus stays manual: a Renovate rule cannot tell an https://quarkus.io/releases/[LTS version^] from another, and a Quarkus update can come with a migration guide to check and apply.
 <12> Quarkus opts out of the Maven group: a group only automerges when every member does, so a PR that never automerges would hold it.
