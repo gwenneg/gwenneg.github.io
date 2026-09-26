@@ -229,7 +229,7 @@ The second is the rebase rule.
 Rebasing only on conflict removes the rebuilds, and two PRs can merge per run, one in each round.
 But each PR then merges as it was tested, against the base it was opened on, not against the base it lands on.
 Renovate's documentation advises against `rebaseWhen: conflicted` when automerge is on.
-It is what a manual merge does today, unless the branch rules require branches to be up to date, in which case such a PR cannot merge at all.
+It is, however, what a manual merge does today, unless the branch rules require branches to be up to date, in which case such a PR cannot merge at all.
 The plugin recommends the default and offers rebasing only on conflict as the risky choice.
 With that choice, the config also names a https://docs.renovatebot.com/configuration-options/#keepupdatedlabel[label^], `keep-updated`.
 Add it to a Renovate PR in GitHub, and Renovate rebases that PR whenever the base branch moves, whatever the rule says for the others.
