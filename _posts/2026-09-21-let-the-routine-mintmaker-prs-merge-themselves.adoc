@@ -223,13 +223,13 @@ A group only automerges when every member does, which is why the packages that n
 The plugin recommends one PR per ecosystem.
 
 The second is the rebase rule.
-Rebasing only on conflict removes the rebuilds and lets two PRs merge per run, one in each pass, as https://github.com/gwenneg-mq-lab/mq-bypass-lab[measured on the test repository^].
+Rebasing only on conflict removes the rebuilds and lets two PRs merge per run, one in each pass.
 Each PR then merges as tested against the base it was opened on, not against the base it lands on.
 Renovate's documentation advises against `rebaseWhen: conflicted` when automerge is on.
 It is also what a manual merge does today, unless the branch rules require branches to be up to date, and then such a PR cannot merge at all.
 The plugin keeps the default and offers the other rule as the risky choice, with a `keep-updated` label that puts one PR back on rebasing whenever the base branch moves.
 
-The two GitHub features that would give both speed and retesting are out of reach for an unattended merge on a branch that requires an approval: auto-merge, see <<own-merge,Why Renovate merges the PR itself>>, and the merge queue, which refuses a PR whose approval comes from a bypass just the same, as the same tests show.
+The two GitHub features that would give both speed and retesting are out of reach for an unattended merge on a branch that requires an approval: auto-merge, see <<own-merge,Why Renovate merges the PR itself>>, and the merge queue, which refuses a PR whose approval comes from a bypass just the same.
 
 == How I made it reliable
 
