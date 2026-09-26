@@ -138,7 +138,7 @@ This is the `renovate.jsonc` file a run writes at the root of the repo for a Qua
 <5> Overrides MintMaker's default, which batches Konflux pipeline updates on Saturdays.
 <6> Pins `FROM` lines to `tag@sha256`, so rebuilds of a tag arrive as digest PRs, in a rule of its own because Renovate decides the pin before it knows the update type.
 <7> Digest, patch and minor bumps of the base images merge on their own, since the Konflux PR build tests the image.
-<8> The digest, patch and minor bumps of the base images share one PR, "Update base images". See <<throughput,Why the automerges land one per run, and what to do about it>> for more details.
+<8> The digest, patch and minor bumps of the base images share one PR, "Update base images". See <<throughput,Why the automerges land one per run>> for more details.
 <9> Pins each action to its full version, `v4.38.1` rather than `v4`, in one manual PR. See <<pinning,Why actions get pinned to a SHA, and images to a digest>> for more details.
 <10> Only the actions named here are automerged, because an action runs arbitrary code in CI with the workflow's secrets. Those maintained by GitHub, under `actions/` and `github/`, are the recommended set. A third-party one is a trust decision of its own. Patch and minor only, so a moved tag with no version change never merges alone.
 <11> Quarkus stays manual: a Renovate rule cannot tell an https://quarkus.io/releases/[LTS version^] from another, and a Quarkus update can come with a migration guide to check and apply.
@@ -208,30 +208,28 @@ With no required checks at all, a PR merges on red CI.
 The pull request the plugin opens lists what you acknowledged: the bypass, and the required checks if you chose `ignoreTests`, so a reviewer can verify them before merging.
 
 [[throughput]]
-== Why the automerges land one per run, and what to do about it
+== Why the automerges land one per run
 
-With automerge on, I expected the green PRs to merge as fast as their checks ran.
-They merged one per MintMaker run instead, and MintMaker runs every four hours, twice a day on busy clusters.
 Renovate https://docs.renovatebot.com/key-concepts/automerge/[merges at most one PR per run^].
-After a merge it stops, restarts the job once, and in that second pass rebases every other open automerge PR and reruns its checks.
-That is its default: an automerge PR is https://docs.renovatebot.com/configuration-options/#rebasewhen[rebased whenever the base branch moves^].
+After a merge it stops, restarts the job once, and in that second pass rebases every other open automerge PR and reruns its checks, since by default an automerge PR is https://docs.renovatebot.com/configuration-options/#rebasewhen[rebased whenever the base branch moves^].
 The PRs on manual review are left where they are.
-On one of our repositories that meant twenty open MintMaker PRs, the most MintMaker allows at once, fourteen of them green, each one rebuilt after every merge and after every push by a colleague, and one merge per run.
+MintMaker runs every four hours, twice a day on busy clusters, so a repository with many green automerge PRs drains at one merge per run, and every merge or human push rebuilds every other automerge PR.
 
-The first lever is batching.
-With one https://docs.renovatebot.com/configuration-options/#groupname[group^] per ecosystem, one merge lands every bump of that ecosystem, and few branches are left to rebuild.
+The plugin offers two levers for this in its Automerge throughput step.
+
+The first is batching: one https://docs.renovatebot.com/configuration-options/#groupname[group^] per ecosystem, so one merge lands every bump of that ecosystem, and few branches are left to rebuild.
 The cost is that one red bump holds its whole group until it is fixed or excluded with a rule of its own.
 A group only automerges when every member does, which is why the packages that never automerge opt out of their group with `null`.
-The plugin asks for this in its Automerge throughput step and recommends one PR per ecosystem.
+The plugin recommends one PR per ecosystem.
 
-The second lever is the rebase rule.
-Rebasing only on conflict removes the rebuilds and lets two PRs merge per run, one in each pass, which I https://github.com/gwenneg-mq-lab/mq-bypass-lab[measured on the test repository^].
+The second is the rebase rule.
+Rebasing only on conflict removes the rebuilds and lets two PRs merge per run, one in each pass, as https://github.com/gwenneg-mq-lab/mq-bypass-lab[measured on the test repository^].
 Each PR then merges as tested against the base it was opened on, not against the base it lands on.
 Renovate's documentation advises against `rebaseWhen: conflicted` when automerge is on.
 It is also what a manual merge does today, unless the branch rules require branches to be up to date, and then such a PR cannot merge at all.
 The plugin keeps the default and offers the other rule as the risky choice, with a `keep-updated` label that puts one PR back on rebasing whenever the base branch moves.
 
-The two GitHub features that would give both speed and retesting are out of reach for an unattended merge on a branch that requires an approval: auto-merge, for the reason given in <<own-merge,Why Renovate merges the PR itself>>, and the merge queue, which refuses a PR whose approval comes from a bypass just the same, as the same tests show.
+The two GitHub features that would give both speed and retesting are out of reach for an unattended merge on a branch that requires an approval: auto-merge, see <<own-merge,Why Renovate merges the PR itself>>, and the merge queue, which refuses a PR whose approval comes from a bypass just the same, as the same tests show.
 
 == How I made it reliable
 
