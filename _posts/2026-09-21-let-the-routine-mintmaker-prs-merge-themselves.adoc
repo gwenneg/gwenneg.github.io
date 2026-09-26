@@ -120,7 +120,7 @@ This is the `renovate.jsonc` file a run writes at the root of the repo for a Qua
       "matchManagers": ["maven"],
       "matchPackageNames": ["io.quarkus*"],
       "automerge": false, // <11>
-      "groupName": null
+      "groupName": null // <12>
     },
     {
       "matchManagers": ["npm"],
@@ -138,10 +138,11 @@ This is the `renovate.jsonc` file a run writes at the root of the repo for a Qua
 <5> Overrides MintMaker's default, which batches Konflux pipeline updates on Saturdays.
 <6> Pins `FROM` lines to `tag@sha256`, so rebuilds of a tag arrive as digest PRs, in a rule of its own because Renovate decides the pin before it knows the update type.
 <7> Digest, patch and minor bumps of the base images merge on their own, since the Konflux PR build tests the image.
-<8> The bumps of an ecosystem share one PR, for a reason explained in <<throughput,Why the automerges land one per run, and what to do about it>>. The Quarkus rule opts out with `null`, since a PR that never automerges would hold its group.
+<8> The bumps of an ecosystem share one PR, for a reason explained in <<throughput,Why the automerges land one per run, and what to do about it>>.
 <9> Pins each action to its full version, `v4.38.1` rather than `v4`, in one manual PR, for a reason explained in <<pinning,Why actions get pinned to a SHA, and images to a digest>>.
 <10> Only the actions named here are automerged, because an action runs arbitrary code in CI with the workflow's secrets. Those maintained by GitHub, under `actions/` and `github/`, are the recommended set. A third-party one is a trust decision of its own. Patch and minor only, so a moved tag with no version change never merges alone.
 <11> Quarkus stays manual: a Renovate rule cannot tell an https://quarkus.io/releases/[LTS version^] from another, and a Quarkus update can come with a migration guide to check and apply.
+<12> Quarkus opts out of the Maven group: a group only automerges when every member does, so a PR that never automerges would hold it.
 
 The `renovate.jsonc` file itself is never automerged: any change to it, from a teammate or from Renovate's own migration PRs, is an ordinary PR that needs a review, so the bot can never loosen its own rules.
 
