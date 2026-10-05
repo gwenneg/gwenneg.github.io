@@ -6,7 +6,7 @@ gem 'logger'
 # The plugins order matters! See https://github.com/asciidoctor/jekyll-asciidoc?tab=readme-ov-file#plugin-ordering
 group :jekyll_plugins do
   gem 'jekyll-asciidoc', '~> 3.0.1'
-  gem 'jekyll-feed', '~> 0.17.0'
+  gem 'jekyll-feed', '~> 0.18.0'
   gem 'jekyll-include-cache', '~> 0.2.2'
   gem 'jekyll-remote-theme', '~> 0.5.2'
 end
