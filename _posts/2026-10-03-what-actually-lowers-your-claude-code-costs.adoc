@@ -1,0 +1,746 @@
+= What actually lowers your Claude Code costs
+:page-excerpt: Every Claude Code move that lowers costs once someone measures it, checked against its source and dated, with what each one does to quality.
+:page-tags: [agents, ai, claude code, costs, evals, skills]
+:revdate: 2026-10-03
+
+[NOTE]
+====
+This post was written with the help of AI.
+====
+
+// TODO author: excerpt. Metadata comes at the end, three candidates each.
+
+On an API key or a cloud provider, a coffee break of six minutes can make Claude Code on Opus 5.5 pay 25 times more to read your conversation on the next turn.
+
+This post lists the moves that lower Claude Code costs, as of October 2026, each with its source.
+Each move says what it does to the quality of the work when a source measured it.
+
+[IMPORTANT]
+====
+This post is about Claude Code, not the Claude chat app.
+With an API key from the Claude Console, you pay for each token, at the Claude API list prices this post uses.
+On a Claude subscription, the same moves make your usage limits last longer.
+The post also says where Claude on Amazon Bedrock, Google Cloud, or Microsoft Foundry differs.
+====
+
+[[bill]]
+== How Claude Code costs add up
+
+Claude bills by the token, a piece of text of about four characters in English.
+A turn is one request to the model and its answer.
+On every turn, Claude Code sends the model everything it needs to answer: its own instructions, the definitions of the tools Claude can use, your `CLAUDE.md`, and the whole conversation so far, file reads and command output included.
+So a session of 40 turns does not pay for 40 messages.
+It pays for the whole conversation, 40 times, growing each time.
+
+The prompt cache makes that repeated reading cheaper.
+When the start of a request is the same as in the previous request, the API reads it from a cache instead of processing it again, at a much lower price.
+Reading from the cache does not change the quality of Claude's answer, as documented on the Claude API's https://platform.claude.com/docs/en/build-with-claude/prompt-caching[Prompt caching^] page.
+A cache write pays for itself as soon as one later request reads it.
+
+.List prices from the Claude API's https://platform.claude.com/docs/en/about-claude/pricing[Pricing^] page on October 4, 2026, in USD per million tokens
+[caption="",cols="2,1,1,1,1",options="header"]
+|===
+|Model |Input |Cache write (5 min) |Cache read |Output
+|Fable 5.1 |$10 |$12.50 |$0.25 |$50
+|Opus 5.5 |$4 |$5 |$0.20 |$20
+|Sonnet 5.5 |$2 |$2.50 |$0.20 |$10
+|Haiku 4.5 |$1 |$1.25 |$0.10 |$5
+|===
+
+Anthropic's post https://claude.dev/blog/what-a-task-costs-on-opus-5-5/[What a task costs on Opus 5.5^] prices an example task on Opus 5.5, without the cost of cache writes.
+Over 40 turns, it reads about 2.8 million input tokens.
+That input costs $11.20 with no cache, and about $1.62 with 90% read from the cache.
+Done in 25 turns, the same task costs about $1.02 in input.
+In that example, output is the smallest part by tokens but the biggest by cost.
+Thinking, the reasoning Claude does before it answers, is billed as output.
+
+The money is well spent only if the task gets done.
+A failed run still costs money, and the task has to be run again.
+That is why Anthropic's https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence[Optimizing for cost and intelligence^] guide says to compare models "on cost per completed task, not per token".
+
+[[moves]]
+== All the moves that lower costs
+
+⭐⭐⭐ marks the largest savings measured, ⭐ the smallest.
+// TODO author: the impact levels are my proposal, from the savings measured in each section and how many readers each move reaches. Confirm or change.
+// TODO author: make the stars traceable. Options to discuss: a written rule tied to the number in each section, with "not measured" and a mark for moves that prevent accidents, the measured number instead of stars, or stars labeled as an estimate. First step: list each move's number, what it measures, and its source in _notes/cost-post/impact-evidence.md. The ⭐⭐ on "Pair models only when the numbers say so" is a proposal made with the split of 2026-10-06.
+
+[cols="5,1,1,1,1",options="header"]
+|===
+|Move |Impact |In a session |Skills and tools |CI and scripts
+
+5+h|▼ <<cache,Keep the cache working>>
+|<<cache-session,Set the model, effort, and tools before you start>> |⭐⭐⭐ |✓ |✓ |
+|<<cache-ttl,Make the cache last through your breaks>> |⭐⭐ |✓ |✓ |✓
+|<<cache-design,Let subagents share a cache>> |⭐⭐ | |✓ |
+|<<cache-headless,Keep the cache across headless runs>> |⭐⭐ | | |✓
+
+5+h|▼ <<always-on,Load less on every turn>>
+|<<claude-md,Keep CLAUDE.md short>> |⭐⭐ |✓ |✓ |
+|<<mcp,Turn off the MCP servers you do not use>> |⭐⭐ |✓ | |✓
+|<<skills,Write skills that load only what they need>> |⭐⭐ | |✓ |
+|<<subagent-load,Give each subagent only what it needs>> |⭐ | |✓ |✓
+
+5+h|▼ <<output,Keep tool output small>>
+|<<tools,Build tools that return less>> |⭐⭐⭐ | |✓ |
+|<<code,Move deterministic work into code>> |⭐⭐ | |✓ |✓
+|<<quiet,Run commands with quiet flags>> |⭐ |✓ | |✓
+
+5+h|▼ <<long,Control long sessions>>
+|<<clear,Clear between tasks, compact while the cache is warm>> |⭐⭐⭐ |✓ | |
+|<<autocompact,Choose when auto-compaction happens>> |⭐⭐ |✓ | |
+|<<subagents,Use subagents to keep the context clean>> |⭐⭐ |✓ |✓ |
+|<<hooks,Put the rules that must survive compaction in hooks>> |⭐ | |✓ |
+
+5+h|▼ <<turns,Finish in fewer turns>>
+|<<audit,Remove instructions written for older models>> |⭐⭐⭐ |✓ |✓ |
+|<<bound,Limit how much Claude delegates>> |⭐⭐⭐ |✓ |✓ |✓
+|<<verify,Give Claude a way to check its work>> |⭐⭐ |✓ |✓ |✓
+|<<specific,Be specific, and plan the large tasks>> |⭐ |✓ |✓ |
+
+5+h|▼ <<model,Pick the model and effort per task>>
+|<<fast,Leave fast mode off>> |⭐⭐⭐ |✓ | |✓
+|<<effort,Start from the default effort, then adjust>> |⭐⭐⭐ |✓ |✓ |✓
+|<<escalate,Run cheap first, then rerun the failures>> |⭐⭐⭐ | | |✓
+|<<pair,Pair models only when the numbers say so>> |⭐⭐ |✓ |✓ |
+|<<evals,Choose with evals, and test again on every new model>> |⭐⭐ | |✓ |
+
+5+h|▼ <<unattended,Put a ceiling on runs nobody watches>>
+|<<caps,Cap every run>> |⭐⭐⭐ | | |✓
+|<<billing-route,Check which account a script bills>> |⭐⭐⭐ | | |✓
+|<<gate,Decide whether to run at all>> |⭐⭐ | | |✓
+|<<fresh,Start a fresh session for each scheduled run>> |⭐⭐ |✓ | |✓
+|<<idle,Stop sessions from spending while you are away>> |⭐⭐ |✓ | |
+
+5+h|▼ <<measure,Judge every saving by the bill>>
+|<<counters,Test token-saving tools against the real cost>> |⭐⭐ |✓ | |
+|<<read-bill,Know which number is the real cost>> |⭐ |✓ | |✓
+|<<method,Measure a change on several runs>> |⭐ | |✓ |✓
+|===
+
+[[cache]]
+== Keep the cache working
+
+Anthropic's https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence[Optimizing for cost and intelligence^] guide calls prompt caching "the largest lever by a wide margin".
+Claude Code manages the cache for you, with nothing to set up.
+
+`/usage` shows how much of your session's input came from the cache, when the last miss happened, and the likely cause when Claude Code can tell, as documented on the https://code.claude.com/docs/en/costs[Manage costs effectively^] page.
+The https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence[Optimizing for cost and intelligence^] guide puts the line at about 80%: below that, look for something that breaks the cache.
+
+[[cache-session]]
+=== Set the model, effort, and tools before you start
+
+Three changes in the middle of a session make the next request process the whole conversation again, uncached, as documented on the https://code.claude.com/docs/en/prompt-caching[How Claude Code uses prompt caching^] page:
+
+* Switching the model with `/model`.
+Each model has its own cache, and the next request is billed at the new model's price.
+* Changing the effort level, on most setups.
+On Opus 5.5, Sonnet 5.5, and Fable 5.1 with an API key or a Claude subscription, effort can change without losing the cache.
+On Amazon Bedrock or Google Cloud, it still clears it.
+* Connecting or disconnecting an MCP server, a server that gives Claude extra tools, when tool search is off, as <<mcp,Turn off the MCP servers you do not use>> explains.
+
+Skills can make the same changes on their own, through the `model` and `effort` fields of their frontmatter.
+A skill whose `model` differs from the session's is a model switch.
+With `context: fork`, the skill runs in a subagent, a separate agent with its own context, and its `model` applies there without touching the session's cache.
+A skill's `effort` replaces the session's while the skill runs, as documented on the https://code.claude.com/docs/en/model-config#adjust-effort-level[Model configuration^] page.
+The Claude API matches the cache on the effort value, as documented on its https://platform.claude.com/docs/en/build-with-claude/prompt-caching#what-invalidates-the-cache[Prompt caching^] page, so a skill's `effort` clears the cache on the same setups as an effort change.
+
+Enabling or disabling a plugin in the middle of a session keeps the cache when the plugin brings skills, commands, agents, or hooks, because Claude Code appends their content after the conversation.
+When the plugin brings an MCP server, its tools join or leave the request, which clears the cache when tool search is off, like connecting or disconnecting the server itself.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[cache-ttl]]
+=== Make the cache last through your breaks
+
+The cache expires after a period of inactivity: an hour on a Claude subscription, or five minutes once the session draws on usage credits.
+On an API key or a cloud provider, it lasts five minutes by default.
+That is the coffee break: after six minutes on Opus 5.5, the next turn writes the whole conversation to the cache again, at 25 times the price of reading it.
+
+On an API key or a cloud provider, the `promptCacheTtl` setting gives the main conversation a one-hour cache, from Claude Code v2.1.242.
+It also covers `claude -p` runs and Agent SDK sessions started from a script.
+On an API key, they start cold when they come more than five minutes apart.
+This example from the https://code.claude.com/docs/en/settings-reference#promptcachettl[All settings^] page keeps subagents on five minutes:
+
+[source,json]
+----
+{
+  "promptCacheTtl": "1h",
+  "subagentPromptCacheTtl": "5m"
+}
+----
+
+A one-hour cache costs twice the input price to write.
+The https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence[Optimizing for cost and intelligence^] guide gives the rule: the one-hour cache pays off once about 1 turn in 20 follows a pause between five minutes and an hour.
+When turns come seconds apart, the five-minute cache cost about 15% to 18% less on Opus 5.5.
+
+Subagents keep a five-minute cache by default, even on a subscription.
+For a subagent that pauses longer than five minutes between requests, the https://code.claude.com/docs/en/sub-agents#supported-frontmatter-fields[subagent file^] can ask for a one-hour cache:
+
+[source,yaml]
+----
+---
+name: repo-auditor
+description: Audits a large repository and reports what it finds
+experimental:
+  cacheTtl: 1h
+---
+----
+
+Back to <<moves,All the moves that lower costs>>
+
+[[cache-design]]
+=== Let subagents share a cache
+
+A fresh subagent does not read the parent's cache, and warms one of its own.
+Its file takes the same `model` and `effort` fields as a skill, and they leave the parent's cache alone.
+A forked subagent, which starts from a copy of the conversation, reuses the parent's cache instead.
+In a https://code.claude.com/docs/en/workflows#prompt-caching-in-a-fan-out[workflow fan-out^], agents with the same model, effort level, agent type, tools, output schema, and working directory share a cache, so parallel agents should share one definition.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[cache-headless]]
+=== Keep the cache across headless runs
+
+A headless run is Claude Code started from a script with `claude -p`, or through the Agent SDK.
+The system prompt holds per-user details, such as the location of the auto memory, so the same task run by different users or on different machines does not share a cache, and each run pays to warm its own.
+`--exclude-dynamic-system-prompt-sections` moves those details into the first user message, and the Agent SDK's https://code.claude.com/docs/en/agent-sdk/modifying-system-prompts[Modifying system prompts^] page warns that Claude "may follow its auto memory guidance less consistently".
+
+Log the cache reads of every run, and check them again after each Claude Code upgrade.
+A regression, reported in https://github.com/anthropics/claude-code/issues/34629[claude-code issue #34629^], stopped `--print --resume` sessions from caching between calls, and made each message about 20 times more expensive until the fix in Claude Code v2.1.90.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[always-on]]
+== Load less on every turn
+
+Some content loads at the start of every session and is read again on every turn, whether Claude uses it or not.
+The https://arxiv.org/abs/2607.12161[Token Reduction Is Not Cost Reduction^] study attributed 74.7% of the cost of 1,212 Claude Code benchmark sessions to the system prompt and the tool definitions, partly by estimate, and 3.3% to tool output.
+It is a preprint, not yet peer reviewed.
+
+`/doctor` lists the MCP servers, skills, and plugins you do not use, next to their context cost.
+
+[[claude-md]]
+=== Keep CLAUDE.md short
+
+CLAUDE.md loads in every session, and the https://code.claude.com/docs/en/memory[How Claude remembers your project^] page says that longer files "reduce adherence".
+The same page says to "target under 200 lines per CLAUDE.md file".
+The https://arxiv.org/abs/2605.10039[Instruction Adherence in Coding Agent Configuration Files^] study, on 1,650 Claude Code sessions, did not find the adherence effect: on Sonnet 4.6 and Opus 4.6, the size of the file made no detectable difference to how often Claude followed a rule.
+It is a preprint by a single author, and the cost of every extra line does not depend on it.
+Two ways to move content out of it:
+
+* Rules that apply to some files go in https://code.claude.com/docs/en/memory#path-specific-rules[path-specific rules^], which load only when Claude works on a matching file.
+* Workflows, such as a release or a review procedure, go in https://code.claude.com/docs/en/skills[skills^], which load when used.
+
+`/doctor` also proposes trimming CLAUDE.md content Claude could work out from the code.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[mcp]]
+=== Turn off the MCP servers you do not use
+
+By default, Claude Code loads only the names of MCP tools, and the full definition when Claude needs a tool.
+This is tool search, and Anthropic's https://platform.claude.com/docs/en/agents-and-tools/tool-use/tool-search-tool[Tool search tool^] page reports that it usually cuts tool definitions by over 85%.
+The same page states the quality side: Claude picks the right tool less reliably past 30 to 50 tools.
+When `ANTHROPIC_BASE_URL` points at a host that is not Anthropic's, Claude Code turns tool search off, and every definition then loads on every turn.
+
+Turn off the servers you do not use with `/mcp`.
+With tool search on, a server that connects or disconnects mid-session does not disturb the cache, as documented on the https://code.claude.com/docs/en/prompt-caching[How Claude Code uses prompt caching^] page.
+With tool search off, it does, so make the change when the session starts.
+When a command-line tool does the same job, such as `gh` for GitHub, it adds no tool definitions at all.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[skills]]
+=== Write skills that load only what they need
+
+The name and description of every skill reach the model on every turn.
+The https://code.claude.com/docs/en/skills#frontmatter-reference[skill frontmatter^] controls this:
+
+* `disable-model-invocation: true` removes the description from the context, for a skill only a person starts.
+* `paths:` limits automatic loading to work on matching files.
+
+The description is also how Claude picks a skill, so write one that says when to use the skill, then trim.
+The https://code.claude.com/docs/en/plugins/measure[Measure plugin cost and usage^] page warns that a shorter description can stop a skill from triggering.
+
+A skill's body loads when the skill runs and stays for every later turn.
+The https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices[Skill authoring best practices^] guide says to keep it under 500 lines, to keep reference files one level deep, and to bundle scripts that Claude runs rather than reads, so only their output enters the context.
+The https://arxiv.org/abs/2603.29919[SkillReducer^] study rewrote 600 public skills with a tool of that name: it moved background and templates out of the body, to be loaded only when needed, summarized the rest, and kept fewer examples.
+Bodies shrank by 39%, and the quality score went slightly up, from 0.722 to 0.742.
+
+To check a plugin, `claude plugin details` shows what it adds to every session, and `/skill-doctor` shows what each skill costs in context and how often it is used.
+`/skill-doctor` is not available on Amazon Bedrock, Google Cloud, or Microsoft Foundry.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[subagent-load]]
+=== Give each subagent only what it needs
+
+A custom subagent loads the CLAUDE.md files and a git status snapshot at startup, plus its tool definitions.
+The https://code.claude.com/docs/en/sub-agents[Create custom subagents^] page gives the ways to load less:
+
+* The `tools` field limits a subagent to the tools it calls.
+* `omitClaudeMd: true` skips the CLAUDE.md files, for a subagent that gets everything from its task.
+* The built-in Explore and Plan subagents already skip both "to keep research fast and inexpensive".
+
+For scripts, `claude -p --bare` skips the automatic discovery of hooks, skills, plugins, MCP servers, auto memory, and CLAUDE.md.
+The https://code.claude.com/docs/en/headless#start-faster-with-bare-mode[Run Claude Code programmatically^] page calls it the recommended mode for scripted calls.
+It never uses a subscription login: on the Anthropic API, it needs an API key.
+
+In https://www.quintonwall.com/writing/best-practices-to-make-claude-code-skills-token-efficient[Best practices to make Claude Code skills token-efficient^], Quinton Wall scoped the tools of each component of the Postman plugin, and one analyzer went from 111 tools to 11.
+He reports that the audit also turned up three permission bugs.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[output]]
+== Keep tool output small
+
+What loads at the start is one part of what Claude reads.
+The rest is what the work adds: everything a command prints enters the conversation and stays there for every later turn.
+
+[[tools]]
+=== Build tools that return less
+
+When you own the tool, shrink the output where the tool produces it.
+Anthropic's https://www.anthropic.com/engineering/writing-tools-for-agents[Writing effective tools for agents^] post suggests pagination, filtering, and truncation, with sensible defaults, on any response that can grow, and for error messages that say what to fix.
+
+Infracost did the same, in https://www.infracost.io/resources/blog/we-cut-claude-s-token-usage-79-by-redesigning-our-cli-for-agents[We cut Claude's token usage 79% by redesigning our CLI for agents^]: filter flags, output limited to what the agent asked for, and a compact text format instead of JSON.
+On 16 questions, five runs each on Opus, the cost went from $16.41 for Claude working from the raw Terraform files to $9.63 with the new CLI.
+On the hard questions, Claude answered 0 of 6 correctly from the raw files, and 6 of 6 with the CLI.
+The author works for Infracost and measured the company's own tool.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[code]]
+=== Move deterministic work into code
+
+Anthropic's https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills[Equipping agents for the real world with Agent Skills^] post gives the example: "sorting a list via token generation is far more expensive than simply running a sorting algorithm."
+The https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices[Skill authoring best practices^] guide adds that a script is more reliable than generated code, and that only its output consumes tokens.
+
+A skill can also run a command before Claude sees the prompt.
+In this example from the https://code.claude.com/docs/en/skills[Extend Claude with skills^] page, Claude Code runs `git diff HEAD` and puts its output in place of the line, so Claude gets the diff without spending a turn asking for it:
+
+[source,markdown]
+----
+## Current changes
+
+!`git diff HEAD`
+----
+
+When a program reads the answer, ask for a format a program can check.
+link:/2026/09/03/take-soundings-before-you-ship.html[Soundings^], a release risk plugin I wrote, asks its analyst for a JSON object, checks it against a schema, and computes the release verdict in code from the severities, so the model never writes the verdict.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[quiet]]
+=== Run commands with quiet flags
+
+Claude Code writes a command's output to a file once it passes 30,000 characters, and shows Claude a preview.
+The https://claude.com/blog/maximizing-the-value-of-your-claude-code-sessions[Maximizing the value of your Claude Code sessions^] post points at what stays under that limit: "A test runner that prints 400 passing tests one line at a time".
+Its advice is to put the two or three commands you run all day in CLAUDE.md, "quiet flags included", so Claude runs them in a form that prints only what matters.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[long]]
+== Control long sessions
+
+A long session reads more on every turn.
+At 20,000 tokens of context, a turn's cache read costs about $0.004 on Opus 5.5, and at 150,000 tokens about $0.03, so 30 turns at that size spend $0.90 on reads alone, according to the https://claude.dev/blog/what-a-task-costs-on-opus-5-5/[What a task costs on Opus 5.5^] post.
+
+[[clear]]
+=== Clear between tasks, compact while the cache is warm
+
+`/clear` starts a fresh conversation, and costs nothing.
+Anthropic's https://support.claude.com/en/articles/14552983-models-usage-and-limits-in-claude-code[Models, usage, and limits in Claude Code^] support article calls it "the single most effective lever for both quality and cost", to use whenever you switch tasks.
+
+To see the context grow as you work, the https://code.claude.com/docs/en/statusline[status line^], a bar at the bottom of Claude Code, can show its size.
+`/statusline` sets one up from a description, typed in the Claude Code session:
+
+[source]
+----
+/statusline show model name and context percentage with a progress bar
+----
+
+The percentage is of the whole window, which is one million tokens on Fable 5.1, Opus 5.5, and Sonnet 5.5, as <<autocompact,Choose when auto-compaction happens>> explains.
+So 15% is already 150,000 tokens, and asking for the token count shows that more plainly than a percentage.
+
+`/compact` replaces the conversation with a summary, and the summary is a request of its own.
+The https://claude.dev/blog/what-a-task-costs-on-opus-5-5/[What a task costs on Opus 5.5^] post prices it at about $0.25 at 150,000 tokens on Opus 5.5 while the cache is warm, which pays for itself within about ten turns.
+After a break that let the cache expire, the same compaction writes the whole conversation to the cache again, about $0.75 for the input at 150,000 tokens.
+Compacting just before you finish costs more than it saves.
+When the last few turns went somewhere you do not want to keep, `/rewind` to just before them instead of compacting.
+
+Without instructions, the summary keeps what Claude guesses is important.
+The https://code.claude.com/docs/en/costs#manage-context-proactively[Manage costs effectively^] page shows how to name what to keep, typed in the Claude Code session:
+
+[source]
+----
+/compact Focus on code samples and API usage
+----
+
+The same page puts standing instructions in the CLAUDE.md at the root of the project:
+
+[source,markdown]
+----
+# Compact instructions
+
+When you are using compact, please focus on test output and code changes
+----
+
+Instructions influence what the summary keeps, but they do not guarantee it, so a rule that must hold belongs in a hook, as <<hooks,Put the rules that must survive compaction in hooks>> explains.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[autocompact]]
+=== Choose when auto-compaction happens
+
+Fable 5.1, Opus 5.5, and Sonnet 5.5 always run with a context window of one million tokens on the Anthropic API, and Claude Code compacts on its own at about 967,000 tokens.
+On Amazon Bedrock, Google Cloud, and Microsoft Foundry, Opus 4.8 and later run with 200,000 tokens.
+In June, I told readers to link:/2026/06/18/your-claude-bill-called.html[stick with the 200K context window^], and on the Anthropic API that advice no longer holds.
+The Claude API's https://platform.claude.com/docs/en/about-claude/pricing#long-context-pricing[Pricing^] page says that "a 900k-token request is billed at the same per-token rate as a 9k-token request", but until compaction happens, every turn reads the whole conversation.
+
+The https://code.claude.com/docs/en/model-config#set-the-auto-compact-window[auto-compact window^] sets how full the context gets before Claude Code compacts.
+`/autocompact 200k` sets it to 200,000 tokens for the current model, from Claude Code v2.1.221, and the `autoCompactWindow` setting sets it for every model.
+`CLAUDE_CODE_DISABLE_1M_CONTEXT=1` goes further and holds the models to a 200,000-token window.
+A smaller window means cheaper turns, but more compactions, and each one costs a request and can lose rules.
+No source I found measured which window size is cheapest overall.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[subagents]]
+=== Use subagents to keep the context clean
+
+A subagent works in its own context and returns only its final message, so verbose work such as a test run stays out of the main conversation.
+That keeps the main context small, but it does not make the work cheaper.
+The https://code.claude.com/docs/en/costs#delegate-verbose-operations-to-subagents[Manage costs effectively^] page notes that a subagent's requests still draw on your usage.
+Anthropic's multi-agent research system, described in https://www.anthropic.com/engineering/multi-agent-research-system[How we built our multi-agent research system^], used about 15 times the tokens of a chat, and agent teams, where every teammate is a full session, use about seven times the tokens of a single session when teammates run in plan mode.
+For a small job, a subagent is overhead.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[hooks]]
+=== Put the rules that must survive compaction in hooks
+
+Compaction has a measured cost on rules.
+The study https://arxiv.org/abs/2608.22752[The Compaction Cliff in Long-Running AI Agent Memory^] applied the prompt behind Claude Code's `/compact`, on Sonnet 4.6, to 20 agent configuration files, halving them each round.
+53% of their safety rules survived one round, and 10% survived five.
+
+A hook is a command Claude Code runs on an event, such as a tool call, and it applies its rule whatever the conversation holds.
+The https://code.claude.com/docs/en/debug-your-config[Debug your configuration^] page draws the line: CLAUDE.md for "we do it this way here", permissions or hooks for "anything that must never happen".
+A command hook costs no context, unless it passes text back to Claude: the https://code.claude.com/docs/en/hooks[Hooks reference^] page says that `additionalContext` inserts a string into the conversation at the point where the hook fired.
+Prompt and agent hooks call a model, so they cost tokens every time they run.
+For a skill, Claude Code keeps only the first 5,000 tokens of each skill it re-attaches after compaction, so the rules a skill cannot do without belong near its top.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[turns]]
+== Finish in fewer turns
+
+Every turn reads the whole conversation again, so a task done in fewer turns costs less, whatever the cache does.
+The https://claude.dev/blog/what-a-task-costs-on-opus-5-5/[What a task costs on Opus 5.5^] post puts it plainly: "the cheapest turn is the one you don't need."
+
+[[audit]]
+=== Remove instructions written for older models
+
+Instructions written to push an older model, such as "verify twice" or "be maximally thorough", make a newer model do extra tool rounds and extra writing, as explained in Anthropic's https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence#audit-prompts-against-the-current-model[Optimizing for cost and intelligence^] guide.
+On a support-desk evaluation, prompts written for Opus 4.8 cost 36% more per ticket on Opus 5, with no change in accuracy, and removing "verify twice" alone cut the cost per ticket by a third.
+An audit of those prompts made them 14% cheaper than before, and raised the share of tickets solved from 92% to 97%.
+The evaluation ran on the Claude API, not in Claude Code.
+
+`/doctor prompt-audit`, described on the https://code.claude.com/docs/en/memory#audit-your-instruction-files[How Claude remembers your project^] page, runs that audit on your CLAUDE.md files, skills, subagents, and other Claude Code configuration, from Claude Code v2.1.283.
+It reports what it finds with proposed edits, and changes nothing until you ask.
+Run it again whenever the model changes.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[bound]]
+=== Limit how much Claude delegates
+
+Recent models start subagents on their own more readily: Anthropic's https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices[Prompting best practices^] guide says that Opus 5 "delegates to subagents more readily than prior models".
+Anthropic's https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-sonnet-5-5[Prompting Claude Sonnet 5.5^] guide says that at xhigh and max effort, it can start its own rounds of review after a task, sometimes with subagents.
+The guide gives an instruction to stop that:
+
+[source]
+----
+When the work the user asked for is done and its checks pass, stop and report. Don't start extra rounds of review or hardening on your own, and don't launch reviewer sub-agents unless the user asked for a review. If you think a deeper review is worth doing, say so at the end.
+----
+
+In Anthropic's tests on coding tasks at max effort, it "cut session cost by about a third, with no change in quality."
+
+An instruction only influences Claude, so set the limits too.
+By default, subagents can nest up to three layers below the main conversation, set with `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`, and 20 can run at once, set with `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`.
+Subagents also inherit the session's effort, so a session at xhigh runs every subagent at xhigh.
+
+A https://code.claude.com/docs/en/workflows#cost[dynamic workflow^], a script Claude writes to run many subagents at once, can use much more than the same task done in conversation.
+Claude Code shows a `Large workflow` warning past 25 agents or 1.5 million projected tokens, but the warning does not pause or limit the run.
+The workflows page gives the ways to keep it small:
+
+* Run the workflow on a small slice first, such as one directory, and watch each agent's tokens in `/workflows`, where you can stop the run.
+* Set the size guideline to fewer than 5 agents with `/config workflowSizeGuideline=small`.
+* Turn ultracode off with `/effort ultracode off` for routine work.
+Ultracode makes Claude plan a workflow for every substantive task, so each request uses more tokens, and it removes both the `Large workflow` warning and the limit on concurrent subagents.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[verify]]
+=== Give Claude a way to check its work
+
+The https://claude.dev/blog/what-a-task-costs-on-opus-5-5/[What a task costs on Opus 5.5^] post names one habit that cuts turns: "giving the model a way to check its work", such as a test it can run.
+It also says to check this before raising effort: a test run costs one turn and its output, while more effort adds thinking to every turn.
+
+A check only pays when it catches the failures you actually get.
+In the https://arxiv.org/abs/2607.02436[Reasoning effort, not tool access, buys first-try reliability in agentic code generation^] study, 90 runs built the same application, and a browser testing tool raised the cost by 42 to 68% without improving the functional score, because most failures came from weak reasoning that the tool could not see.
+It is a preprint by a single author, on one application.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[specific]]
+=== Be specific, and plan the large tasks
+
+A vague request makes Claude explore the codebase first, and every file it reads stays in the conversation.
+In skills and subagents, the prompt that starts the agent is read from its first turn too, so a vague one costs as much there.
+
+For a large or ambiguous task, https://code.claude.com/docs/en/permission-modes#analyze-before-you-edit-with-plan-mode[plan mode^] makes Claude propose an approach before it edits anything.
+You pay for a plan once, instead of a wrong implementation and its fix.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[model]]
+== Pick the model and effort per task
+
+The model sets the price of every token, and the effort level sets how many of the expensive ones Claude writes before it answers.
+Both are easy to set too high, and setting them too low has a cost too: a failed task bills its tokens and needs another try.
+
+[[fast]]
+=== Leave fast mode off
+
+https://code.claude.com/docs/en/fast-mode[Fast mode^] runs Opus faster with the same quality, at twice the price: $8 per million input tokens and $40 per million output tokens on Opus 5.5, as of October 2026.
+The first time it is turned on in a conversation, the whole conversation is billed again at the fast mode input price, uncached.
+On a subscription, it draws on usage credits even when the plan has usage left.
+`/fast` turns it on and off, and the choice carries over to new sessions by default.
+The fast mode page lists CI pipelines and cost-sensitive work among the cases for standard speed.
+
+Two settings take the choice out of habit:
+
+* `"fastModePerSessionOptIn": true` makes every session start with fast mode off.
+* `CLAUDE_CODE_DISABLE_FAST_MODE=1` turns fast mode off entirely.
+
+Fast mode is a research preview, on the Anthropic API and subscriptions only, and its price can change.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[effort]]
+=== Start from the default effort, then adjust
+
+On Opus 5.5, the default effort in Claude Code is medium.
+To change it, type `/effort` followed by a level name, such as `low` or `high`, in the Claude Code session.
+Anthropic's https://claude.com/blog/claude-model-and-effort-level-in-claude-code[Choosing a Claude model and effort level in Claude Code^] post says to check your prompt first, then gives a rule for when Claude still gets a task wrong:
+
+* When Claude skipped work, such as a file, the tests, or a check of its own work, raise the effort.
+* When Claude had all the pertinent context, clearly tried, and still got it wrong, pick a larger model.
+
+The https://claude.dev/blog/what-a-task-costs-on-opus-5-5/[What a task costs on Opus 5.5^] post adds two points.
+Do not carry an effort level from one model to another: at the same level, Opus 5.5 thinks more per turn than Opus 5.
+And the choice has a price: on Opus 5.5, high effort that adds 20,000 thinking tokens over a task costs about $0.40, about the cost of a retry loop of ten turns, so high effort pays for itself on a task where it saves one retry.
+
+The https://claude.dev/blog/spending-your-effort/[Spending your effort^] post says where extra effort helps: on tasks where edge cases hide, such as hardware, code review, and security.
+It reduces failures due to missed edge cases, but "does not fix when the model has the wrong approach".
+At the top of the scale, the https://code.claude.com/docs/en/model-config#adjust-effort-level[Model configuration^] page warns that `max` "is prone to overthinking".
+
+Anthropic's own pages disagree on which model to start from: some say Sonnet for most coding work, others Opus 5.5.
+Your tasks decide, as <<evals,Choose with evals, and test again on every new model>> explains.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[escalate]]
+=== Run cheap first, then rerun the failures
+
+For batches of tasks that a script can grade, Anthropic's https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence[Optimizing for cost and intelligence^] guide describes a two-pass approach.
+Running every task on Opus 5.5 at low effort, then rerunning only the failures at high effort, solved about 97% of the tasks for about $0.17 each.
+Running everything at high effort solved 95.3% for $0.29 each.
+The rerun starts the task again.
+The study https://arxiv.org/abs/2608.24358[The Handoff Tax^], on Claude and GPT models, found that handing a run in progress to a stronger model recovers less than half of the quality gap between the two models, at a substantial cost premium.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[pair]]
+=== Pair models only when the numbers say so
+
+A subagent on a cheaper model can save money when its work does not need a stronger one.
+The https://arxiv.org/abs/2608.29675[Cost-Effective Repository Exploration for Agentic Issue Localization^] study found that small open-weight explorer models kept 78% to 94% of a larger model's success at finding the right files, with 84% to 95% fewer tokens.
+It tested no Claude model, and measured only the search, not the fix.
+The limit, from the https://claude.dev/blog/what-a-task-costs-on-opus-5-5/[What a task costs on Opus 5.5^] post: "a small model that misreads a search result sends the main model after the wrong file, and the main model pays for the detour."
+
+The https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence[Optimizing for cost and intelligence^] guide sets a wider limit, measured on the Claude API: "On work a single model could handle alone, the same model at lower effort was cheaper every time."
+Handing work to cheaper workers saved money in only two cases: as insurance against rare runaway runs on routine work, and on input too large for one context.
+
+Claude Code also has a built-in way to pair two models, the https://code.claude.com/docs/en/advisor[advisor tool^]: a cheaper model does the work and consults a stronger one at decision points.
+The documentation says this "typically costs less than running the stronger model throughout".
+The https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence[Optimizing for cost and intelligence^] guide measured a pairing on the Claude API that cost more than the cheaper model alone: Opus 5.5 at high effort with a Fable 5.1 advisor scored 1.7 points above Opus 5.5 alone at high, for about 2.1 times the money, about what more effort buys.
+It also depends on the cheaper model asking: at low effort, an Opus 5.5 executor consulted the advisor on 1 task in 300 and scored 7 points lower than Opus 5.5 alone.
+The guide's advice is to price the stronger model alone at low effort first, as the number to beat.
+It is experimental, limited to the Anthropic API, and the advisor's read of the conversation is not cached.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[evals]]
+=== Choose with evals, and test again on every new model
+
+The price per token does not predict the cost of a finished task.
+On the https://www.tbench.ai/leaderboard[Terminal-Bench 4.0 leaderboard^], Fable 5.1 scored the same at xhigh and max effort, and max cost $1,371 more over the same 330 trials.
+On Artificial Analysis's https://artificialanalysis.ai/agents/coding-agents[AI Coding Agent Benchmarks & Leaderboard^], Sonnet 5.5 in Claude Code cost about 11 times more per task at max effort than at high, for 13 more points on its index.
+Leaderboards make a good shortlist, but they run their own tasks, at list prices, and some with their own harness, so they cannot replace a test on your own tasks.
+
+Evals are those tests: automated runs of a skill or a task, graded on the result.
+I wrote about link:/2026/08/01/turn-an-ai-you-cant-trust-into-one-you-can.html[building evals for a Claude Code skill^], and they are what makes a cheaper setting safe to keep.
+For a plugin, https://code.claude.com/docs/en/plugin-evals[`claude plugin eval`^] runs them, from Claude Code v2.1.269, and its runs are billed like any other.
+
+Run them again whenever the model changes.
+A new model can be the cheaper one: in the https://platform.claude.com/docs/en/about-claude/models/optimizing-for-cost-and-intelligence[Optimizing for cost and intelligence^] guide, Opus 5 at low effort beat Opus 4.8 at its default for about 30% of its cost per solved task, so "the cheapest upgrade is the new model at a lower setting".
+It is not guaranteed: on a research benchmark, moving from Fable 5 to Fable 5.1 cost 41% more per task at high effort.
+Model aliases such as `opus` move to new versions, an effort level does not mean the same amount of thinking on a new model, and the tokenizer introduced with Claude 4.7 counts the same text as about 30% more tokens.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[unattended]]
+== Put a ceiling on runs nobody watches
+
+A run that nobody watches has nobody to stop it, so its limits belong in its command line and its configuration.
+A session you left open is one of them when it starts turns on its own.
+
+[[caps]]
+=== Cap every run
+
+The https://code.claude.com/docs/en/cli-reference#cli-flags[CLI reference^] gives two flags for headless runs:
+
+[source,bash]
+----
+claude -p --max-budget-usd 5.00 "query"
+claude -p --max-turns 3 "query"
+----
+
+`--max-budget-usd` stops the run at a dollar amount, subagents included.
+For the same cap in the Agent SDK, Anthropic's https://platform.claude.com/cookbook/claude-agent-sdk-scheduled-repository-reviewer-scheduled-repository-reviewer[Build a scheduled repository reviewer^] cookbook warns that a run "can end over the cap".
+`--max-turns` exits with an error when the turn limit is reached.
+In `dontAsk` permission mode, Claude Code denies every tool call that would otherwise ask for permission, so the run never waits for an answer nobody will give.
+In GitHub Actions, set a timeout on the job as well, with `timeout-minutes`, as the https://github.com/anthropics/claude-code-action[claude-code-action^] examples do.
+
+A cap cuts a run off, so a task that needed more stops unfinished: set it from the cost of runs you have measured.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[billing-route]]
+=== Check which account a script bills
+
+With `claude -p`, an `ANTHROPIC_API_KEY` variable is always used when it is set, as documented on the https://code.claude.com/docs/en/authentication#authentication-precedence[Authentication^] page.
+A script started from a shell that has one bills the API, even when you have a subscription.
+One subscriber reported more than $1,800 in API charges in two days from scheduled runs that inherited the key, in https://github.com/anthropics/claude-code/issues/37686[claude-code issue #37686^].
+For CI on a subscription, unset the key, generate a token with `claude setup-token`, and set it as `CLAUDE_CODE_OAUTH_TOKEN`.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[gate]]
+=== Decide whether to run at all
+
+The cheapest run is the one you skip.
+Anthropic's https://code.claude.com/docs/en/code-review#pricing[Code Review^] averages $15 to $25 per review, and the page notes that reviewing after every push multiplies that cost.
+In CI, decide as early as you can:
+
+* A `paths:` filter starts the workflow only when the files it cares about change.
+* A cheap first check stops the run early.
+Anthropic's https://github.com/anthropics/claude-code/blob/main/plugins/code-review/commands/code-review.md[code-review plugin^] starts with a Haiku agent that checks whether the pull request is closed, is a draft, does not need a review, or already has Claude's comments, and stops there if so.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[fresh]]
+=== Start a fresh session for each scheduled run
+
+A scheduled job that resumes the same session carries the context of every earlier run into the next one.
+The https://platform.claude.com/cookbook/claude-agent-sdk-scheduled-repository-reviewer-scheduled-repository-reviewer[Build a scheduled repository reviewer^] cookbook warns that this context "also grows cost and can anchor the reviewer on old conclusions".
+It recommends "a fresh session per invocation" for a CI reviewer that gates pull requests, and a fresh session with the prior findings fed in for a job that needs only what the last run reported.
+When a job does resume, the cookbook deletes the session on a schedule, weekly or whenever the repository changes shape.
+
+The same goes for `/loop` at the keyboard.
+The https://claude.com/blog/maximizing-the-value-of-your-claude-code-sessions[Maximizing the value of your Claude Code sessions^] post explains that a loop "fires as a full turn in the session you set it up in, carrying that whole conversation with it every time", and misses the cache after an hour idle.
+Start a fresh session in another terminal and run the loop from there.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[idle]]
+=== Stop sessions from spending while you are away
+
+A session can start turns on its own while it sits idle, and each one sends the whole conversation.
+The https://code.claude.com/docs/en/costs#why-usage-climbs-in-a-long-session[Manage costs effectively^] page names three sources:
+
+* A scheduled task, such as `/loop`, fires on its interval, as <<fresh,Start a fresh session for each scheduled run>> explains.
+* A message from another of your Claude Code sessions arrives as a new turn.
+`"crossSessionInbound": "hold"` holds those messages instead.
+* A https://code.claude.com/docs/en/goal[goal^], set with `/goal`, keeps Claude working until a condition holds, and while background work keeps it waiting, Claude Code checks on that work up to three times between your prompts.
+`CLAUDE_CODE_GOAL_CHECKIN_MINUTES=0` turns the check-ins off.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[measure]]
+== Judge every saving by the bill
+
+Every move in this post should be checked on your own work: note the cost before a change, and compare it on similar work after.
+This group says why a token counter is not the number to note, which number is, and how to compare two setups.
+
+[[counters]]
+=== Test token-saving tools against the real cost
+
+Several tools promise to cut tokens, and their own counters agree with them.
+JetBrains tested three of them against billed cost:
+
+* The caveman skill makes Claude write in short sentences, and advertised 65% fewer output tokens.
+In https://blog.jetbrains.com/ai/2026/07/speak-to-ai-agents-like-cavemen-tosave-tokens/[Speaking to AI Agents like Cavemen Saves 65% of Tokens. We Test.^], JetBrains measured about 10% lower cost at best on 86 coding tasks, and no detectable change in quality.
+* RTK compresses shell output through a hook, and advertised 60 to 90% fewer tokens at the time of the test.
+In https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/[rtk Claude Code Token Savings^], JetBrains measured a median cost 7.6% higher at low effort and no change at high effort, while RTK's own analytics reported 96.2 million tokens saved.
+Claude Code reads files with its Read and Grep tools, which never go through a shell hook.
+* ponytail makes Claude write less code.
+In https://blog.jetbrains.com/ai/2026/07/ponytail-skill-claude-tested/[Ponytail Skill for Claude Code^], JetBrains measured 10.3% lower cost on 80 paired tasks, with no quality difference it could detect.
+
+The same study, over 2,908 Claude Code runs, found the same pattern with output compression: its largest setup cut tool-output tokens by 38.4% and raised the billed cost by 6.8%, because Claude then spent extra turns on diagnosis, testing, and fetching again what was cut.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[read-bill]]
+=== Know which number is the real cost
+
+Most cost numbers in Claude Code are estimates:
+
+* `/usage` computes its dollar figure on your machine at list price, so on a subscription it is "a guide to how much work you did, not a bill", as the https://claude.dev/blog/what-a-task-costs-on-opus-5-5/[What a task costs on Opus 5.5^] post puts it.
+* `claude -p --output-format json` returns `total_cost_usd`, which the https://code.claude.com/docs/en/headless[Run Claude Code programmatically^] page calls a client-side estimate.
+When a run resumes a session, that total covers the whole session, as Panth Patel found out in https://dev.to/panthpatel/402-on-one-ticket-cost-per-turn-in-headless-claude-code-4khe[$402 on one ticket^].
+* The https://code.claude.com/docs/en/monitoring-usage[OpenTelemetry metrics^] break cost down by skill, plugin, and agent, with custom names hidden unless `OTEL_LOG_TOOL_DETAILS=1` is set, but their "input" count excludes cache reads and writes, so a dashboard that adds the wrong fields undercounts input.
+
+For the Anthropic API, the real cost is on the Usage page of the Claude Console, which the https://code.claude.com/docs/en/costs[Manage costs effectively^] page calls the source for "authoritative billing".
+The https://platform.claude.com/docs/en/manage-claude/usage-cost-api[Usage and Cost API^] returns similar data to a program, for an organization account.
+On Amazon Bedrock, Google Cloud, or Microsoft Foundry, Claude Code is billed to your cloud account, so your cloud bill shows the real cost.
+
+Back to <<moves,All the moves that lower costs>>
+
+[[method]]
+=== Measure a change on several runs
+
+Anthropic's https://platform.claude.com/cookbook/cost-optimization-cost-optimization[Cost Optimization on the Claude API^] cookbook shows the method on a fictional company with synthetic data, for the Claude API rather than Claude Code.
+It ran the same labeled tasks on each setup, twice, recorded the cost per task next to the pass rate, and found a setup 13 times cheaper than the one it started from.
+For a real decision, it advises about 50 cases and five or more trials.
+
+Three rules come out of it:
+
+. Compare billed cost on the same tasks, with and without the change.
+. Run each side several times, since identical runs of a task can differ by up to 30 times in tokens, according to the study https://arxiv.org/abs/2604.22750[How Do AI Agents Spend Your Money?^], which analyzed eight models on SWE-bench Verified.
+. Count the cost per completed task, so a cheaper run that fails counts as a cost.
+
+
+Back to <<moves,All the moves that lower costs>>
+
+[[whats-next]]
+== What's next
+
+Prices, defaults, and models change every few months, and some of this post will be out of date by the end of the year.
+I will update it when a fact changes, with the date of the change.
+// TODO author: confirm the promise to update, or cut. Soundings measurement plan: AUTHOR TO CONFIRM.
+
+If you measure one of these moves on your own work, please let me know what it did to your costs.
