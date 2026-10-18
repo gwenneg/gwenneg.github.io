@@ -1,0 +1,866 @@
+---
+title: "Why is my PostgreSQL query so slow?! Let’s fix it!"
+description: "PostgreSQL is pretty smart at running queries, but sometimes it needs a little help to hit top speed."
+tags: [execution plan, indexing, performances, postgres, sql]
+---
+
+[PostgreSQL](https://www.postgresql.org/) is pretty smart at running queries, but sometimes it needs a little help to hit top speed.
+In this post, we'll walk through a practical use case and explore different ways to speed up your queries.
+
+## The use case
+
+Imagine a centralized meteorological system that collects daily weather reports from 100 weather stations.
+Each station produces 10,000 reports every day, which are stored in the database and automatically deleted after 30 days.
+
+Here's what the SQL schema looks like:
+
+![DB schema](/assets/images/posts/postgres-execution-time/schema.svg)
+
+The system depends on two essential SQL queries that require optimal performance:
+
+- Fetching all reports from a specific weather station starting from a given date, sorted by received time in descending order and paginated:
+
+```sql
+select wr.id, wr.data, wr.received_at
+from weather_report wr join weather_station ws on wr.weather_station_id = ws.id
+where ws.name = 'weather-station-17' and wr.received_at >= '2025-03-06'
+order by wr.received_at desc
+offset 800 limit 100;
+```
+
+- Counting all reports from a specific weather station starting from a given date:
+
+```sql
+select count(wr.id)
+from weather_report wr join weather_station ws on wr.weather_station_id = ws.id
+where ws.name = 'weather-station-17' and wr.received_at >= '2025-03-06';
+```
+
+Now, let's see how we can make these queries faster!
+
+## Optimization playground
+
+You're not just reading another post about PostgreSQL query performance.
+This post comes with a repository I created and used to test all the content discussed below: [gwenneg/blog-postgres-execution-time](https://github.com/gwenneg/blog-postgres-execution-time).
+Hopefully, this repository will make it easier for you to experiment with different optimizations, possibly using your own schema and generated data.
+
+If you're not interested in testing optimizations, feel free to skip this section and jump to the [next one](#query-planner).
+Otherwise, I'll show you how to use my repository to run your own tests.
+
+> [!WARNING]
+> By default, the [gwenneg/blog-postgres-execution-time](https://github.com/gwenneg/blog-postgres-execution-time) repository generates 60 million records during the initialization of a local PostgreSQL database.
+> Depending on your machine, this process can take several hours.
+
+> [!NOTE]
+> [Docker Compose](https://docs.docker.com/compose/) is required to run the tests on your machine.
+> While PostgreSQL is not required, using an existing installation should work.
+
+Clone the [gwenneg/blog-postgres-execution-time](https://github.com/gwenneg/blog-postgres-execution-time) repository.
+Open a terminal in either the [single-table](https://github.com/gwenneg/blog-postgres-execution-time/tree/main/single-table) folder (no partitions) or the [partitioned-table](https://github.com/gwenneg/blog-postgres-execution-time/tree/main/partitioned-table) folder (with partitions) from the repository, depending on which approach you want to test.
+Then, start a container with:
+
+```bash
+docker compose up # <1>
+```
+
+1. The execution of this command may take several hours.
+{.callouts}
+
+{{< details summary="**Click here** if you run into a `permission denied` error on a SELinux-enabled system." >}}
+
+In a SELinux-enabled system (e.g. Fedora, CentOS, RHEL), SELinux policies may prevent the container from accessing the `init.sql` file:
+
+```bash
+[postgres] | psql: error: /docker-entrypoint-initdb.d/init.sql: Permission denied
+```
+
+If that happens, run the following commands:
+
+```bash
+chcon -Rt svirt_sandbox_file_t ./sql # <1>
+docker compose down --volumes # <2>
+docker compose up # <3>
+```
+
+1. This changes the SELinux security context and grants permission to the container to access all files from the `./sql` folder.
+2. The volumes that were created with the previous `docker compose up` execution need to be removed.
+   Otherwise, the `init.sql` script will not be rerun.
+3. The execution of this command may take several hours.
+{.callouts}
+
+{{< /details >}}
+
+The database initialization is complete when the following message appears:
+
+```bash
+[postgres] | 2025-03-21 13:28:21.316 UTC [1] LOG:  database system is ready to accept connections
+```
+
+You can now connect to the database.
+
+{{< details summary="**Click here** if PostgreSQL is not installed on your machine." >}}
+
+First, identify the PostgreSQL container ID using `docker ps`.
+Then, enter the container with the following command:
+
+```bash
+docker exec -it 44086e358596 bash # <1>
+```
+
+1. `44086e358596` is the container ID returned by `docker ps`.
+{.callouts}
+
+Now that you're in the container, it's time to connect to PostgreSQL:
+
+```bash
+psql -h localhost -U postgres
+```
+
+{{< /details >}}
+
+{{< details summary="**Click here** to use `psql` from an existing PostgreSQL installation." >}}
+
+Run the following command from the current folder:
+
+```bash
+psql -h localhost -p 15432 -U postgres # <1>
+```
+
+1. When prompted, enter the password: `postgres`.
+{.callouts}
+
+{{< /details >}}
+
+Congrats! You're now ready to run the SQL scripts provided in the repository or any other SQL queries:
+
+```
+\i sql/explain_analyze.sql -- <1>
+```
+
+1. If you're connected to PostgreSQL from within the container, the path is `/mnt/sql/explain_analyze.sql`.
+{.callouts}
+
+These are the SQL scripts included in the repository:
+
+| File name | Description |
+|---|---|
+| create_indexes.sql | Adds indexes to the `weather_report` table. |
+| explain_analyze.sql | Displays the execution plan of the "fetch" and "count" queries. |
+| init.sql | DO NOT RUN MANUALLY - Creates the database schema and generates data at container startup. |
+| relations_size.sql | Displays the disk usage of the `weather_report` table and all associated indexes. |
+| vacuum_analyze.sql | Performs `VACUUM` and updates statistics on the `weather_report` and `weather_station` tables. |
+{cols="1,3"}
+
+## The PostgreSQL query planner {#query-planner legacy="the-postgresql-query-planner"}
+
+When you run a SQL query in PostgreSQL, it isn't executed immediately.
+First, the [query planner](https://www.postgresql.org/docs/current/planner-optimizer.html) analyzes the query structure, table sizes, indexes, joins, filtering conditions and available statistics to generate multiple execution plans.
+Then, PostgreSQL selects the most efficient plan and executes the query.
+
+The [EXPLAIN](https://www.postgresql.org/docs/current/sql-explain.html) command displays the execution plan for a given query, providing details on execution time, row counts, indexes usage and more.
+That command is crucial for identifying slow queries, missing indexes, inefficient joins or outdated statistics.
+We'll rely on it heavily throughout this post.
+
+> [!TIP]
+> When testing query optimizations, use [EXPLAIN](https://www.postgresql.org/docs/current/sql-explain.html) before and after making changes.
+> This will help you determine whether the optimization was effective.
+
+Reading an execution plan used to require highly specialized knowledge before the rise of Large Language Models.
+Today, if you submit your execution plan to an LLM, it can help identify weaknesses and suggest fixes.
+However, as with any LLM, be cautious of hallucinations and always double-check its recommendations.
+
+Besides LLMs, tools like [explain.dalibo.com](https://explain.dalibo.com) can also help you visualize and understand your execution plan:
+
+![Visualizing an execution plan with Dalibo](/assets/images/posts/postgres-execution-time/dalibo.png)
+
+## Explaining the SQL queries from the use case
+
+> [!NOTE]
+> Most of this post is based on the [single-table](https://github.com/gwenneg/blog-postgres-execution-time/tree/main/single-table) folder from the [gwenneg/blog-postgres-execution-time](https://github.com/gwenneg/blog-postgres-execution-time) repository.
+> The [partitioned-table](https://github.com/gwenneg/blog-postgres-execution-time/tree/main/partitioned-table) folder is only used in the [Partitioning the `weather_report` table](#partitioning) section below.
+
+Let's see what the execution plans for our two essential queries look like without indexes (except for primary keys) and using the default PostgreSQL settings.
+
+```sql {title="Explaining the &quot;fetch&quot; query"}
+explain analyze -- <1>
+select wr.id, wr.data, wr.received_at
+from weather_report wr join weather_station ws on wr.weather_station_id = ws.id
+where ws.name = 'weather-station-17' and wr.received_at >= '2025-03-06'
+order by wr.received_at desc
+offset 800 limit 100;
+```
+
+1. When the `ANALYZE` option is used, PostgreSQL provides additional details including the actual execution times.
+{.callouts}
+
+> [!WARNING]
+> When `ANALYZE` is used, the SQL query is actually executed and modifies the DB data.
+> If you need to `EXPLAIN ANALYZE` an `INSERT` query or any other query that modifies the data, you should wrap the `EXPLAIN` statement into a transaction and end it with a `ROLLBACK`.
+
+{{< details summary="**Click here** to see the execution plan of the &quot;fetch&quot; query." >}}
+
+```sql
+ Limit  (cost=980048.43..980060.09 rows=100 width=57) (actual time=2063.296..2067.738 rows=100 loops=1)
+   ->  Gather Merge  (cost=979955.09..995587.64 rows=133984 width=57) (actual time=1984.690..1989.270 rows=900 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2 -- <1>
+         ->  Sort  (cost=978955.06..979122.54 rows=66992 width=57) (actual time=1944.160..1944.194 rows=687 loops=3)
+               Sort Key: wr.received_at DESC
+               Sort Method: top-N heapsort  Memory: 288kB -- <2>
+               Worker 0:  Sort Method: top-N heapsort  Memory: 288kB
+               Worker 1:  Sort Method: top-N heapsort  Memory: 288kB
+               ->  Hash Join  (cost=2.26..975332.88 rows=66992 width=57) (actual time=873.837..1927.942 rows=53333 loops=3)
+                     Hash Cond: (wr.weather_station_id = ws.id)
+                     ->  Parallel Seq Scan on weather_report wr  (cost=0.00..957000.00 rows=6699173 width=73) (actual time=873.701..1494.414 rows=5333333 loops=3) -- <3>
+                           Filter: (received_at >= '2025-03-06 00:00:00'::timestamp without time zone)
+                           Rows Removed by Filter: 4666667
+                     ->  Hash  (cost=2.25..2.25 rows=1 width=16) (actual time=0.054..0.054 rows=1 loops=3)
+                           Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                           ->  Seq Scan on weather_station ws  (cost=0.00..2.25 rows=1 width=16) (actual time=0.040..0.045 rows=1 loops=3)
+                                 Filter: (name = 'weather-station-17'::text)
+                                 Rows Removed by Filter: 99
+ Planning Time: 0.200 ms
+ JIT:
+   Functions: 44
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+   Timing: Generation 1.955 ms (Deform 0.951 ms), Inlining 212.662 ms, Optimization 142.882 ms, Emission 131.128 ms, Total 488.627 ms
+ Execution Time: 2068.703 ms -- <4>
+```
+
+1. The number of workers varies depending on the available CPU cores and the PostgreSQL configuration.
+2. Sorting all matching rows using `top-N heapsort` is expensive.
+3. A [parallel sequential scan](https://www.postgresql.org/docs/current/parallel-plans.html#PARALLEL-SCANS) on 30 million rows is a major bottleneck.
+4. This is the execution time of the query.
+{.callouts}
+
+{{< /details >}}
+
+```sql {title="Explaining the &quot;count&quot; query"}
+explain analyze
+select count(wr.id)
+from weather_report wr join weather_station ws on wr.weather_station_id = ws.id
+where ws.name = 'weather-station-17' and wr.received_at >= '2025-03-06';
+```
+
+{{< details summary="**Click here** to see the execution plan of the &quot;count&quot; query." >}}
+
+```sql
+ Finalize Aggregate  (cost=976500.57..976500.58 rows=1 width=8) (actual time=2029.976..2034.088 rows=1 loops=1)
+   ->  Gather  (cost=976500.36..976500.57 rows=2 width=8) (actual time=2029.833..2034.071 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2 -- <1>
+         ->  Partial Aggregate  (cost=975500.36..975500.37 rows=1 width=8) (actual time=2013.942..2013.943 rows=1 loops=3)
+               ->  Hash Join  (cost=2.26..975332.88 rows=66992 width=16) (actual time=888.852..2011.411 rows=53333 loops=3)
+                     Hash Cond: (wr.weather_station_id = ws.id)
+                     ->  Parallel Seq Scan on weather_report wr  (cost=0.00..957000.00 rows=6699173 width=32) (actual time=888.705..1508.554 rows=5333333 loops=3) -- <2>
+                           Filter: (received_at >= '2025-03-06 00:00:00'::timestamp without time zone)
+                           Rows Removed by Filter: 4666667
+                     ->  Hash  (cost=2.25..2.25 rows=1 width=16) (actual time=0.042..0.043 rows=1 loops=3)
+                           Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                           ->  Seq Scan on weather_station ws  (cost=0.00..2.25 rows=1 width=16) (actual time=0.033..0.037 rows=1 loops=3)
+                                 Filter: (name = 'weather-station-17'::text)
+                                 Rows Removed by Filter: 99
+ Planning Time: 0.141 ms
+ JIT:
+   Functions: 50
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+   Timing: Generation 1.781 ms (Deform 0.765 ms), Inlining 211.423 ms, Optimization 142.079 ms, Emission 162.995 ms, Total 518.278 ms
+ Execution Time: 2034.732 ms -- <3>
+```
+
+1. The number of workers varies depending on the available CPU cores and the PostgreSQL configuration.
+2. A [parallel sequential scan](https://www.postgresql.org/docs/current/parallel-plans.html#PARALLEL-SCANS) on 30 million rows is a major bottleneck.
+3. This is the execution time of the query.
+{.callouts}
+
+{{< /details >}}
+
+More than 2 seconds to run each query - that doesn't look good, right?
+But it's no surprise since the `weather_report` table contains 30 million records and we're filtering on unindexed columns.
+
+## Indexing the `weather_report` table
+
+Our queries both include a condition on the `received_at` and `weather_station_id` columns from the `weather_report` table, which contains 30 million records.
+Indexing these columns should help speed up the queries.
+
+> [!TIP]
+> If you create a composite [B-Tree index](https://www.postgresql.org/docs/current/indexes-types.html#INDEXES-TYPES-BTREE) (the default index type in PostgreSQL) with multiple columns, their order matters and can impact query performance.
+> The best column order depends on how your query filters, sorts or joins data.
+> So how do you figure out which order works best?
+> A good rule of thumb is to put the column that filters out the most rows — in other words, the one with the highest cardinality — first.
+> In a local environment, you can also take a trial-and-error approach by creating different index orders and using `EXPLAIN ANALYZE` to see which one the query planner prefers.
+
+### Introducing non-covering B-Tree indexes
+
+> [!NOTE]
+> A non-covering index is an index that does not include all the columns needed to satisfy a query.
+> As a result, PostgreSQL must perform extra lookups in the table (heap) to retrieve missing column values.
+
+Let's add the following indexes and see how they impact the execution plans.
+
+```sql
+create index ix_btree_received_at_weather_station_id_non_covering
+on weather_report using btree (received_at desc, weather_station_id); -- <1>
+```
+
+1. `using btree` can be omitted because that's the default index type in PostgreSQL.
+{.callouts}
+
+```sql
+create index ix_btree_weather_station_id_received_at_non_covering
+on weather_report using btree (weather_station_id, received_at desc);
+```
+
+> [!TIP]
+> If a column is mostly queried in descending order, indexing it with `DESC` helps avoid reverse index scans and reduces sorting overhead, effectively improving query performance.
+
+```sql {title="Execution plan of the &quot;fetch&quot; query with a non-covering index"}
+ Limit  (cost=69479.90..78164.82 rows=100 width=57) (actual time=67.339..70.740 rows=100 loops=1)
+   ->  Nested Loop  (cost=0.56..13831166.26 rows=159255 width=57) (actual time=1.021..70.693 rows=900 loops=1)
+         Join Filter: (wr.weather_station_id = ws.id)
+         Rows Removed by Join Filter: 89092
+         ->  Index Scan using ix_btree_received_at_weather_station_id_non_covering on weather_report wr  (cost=0.56..13592281.74 rows=15925485 width=73) (actual time=0.545..51.906 rows=89992 loops=1) -- <1>
+               Index Cond: (received_at >= '2025-03-06 00:00:00'::timestamp without time zone)
+         ->  Materialize  (cost=0.00..2.25 rows=1 width=16) (actual time=0.000..0.000 rows=1 loops=89992)
+               ->  Seq Scan on weather_station ws  (cost=0.00..2.25 rows=1 width=16) (actual time=0.026..0.044 rows=1 loops=1)
+                     Filter: (name = 'weather-station-17'::text)
+                     Rows Removed by Filter: 99
+ Planning Time: 10.100 ms
+ Execution Time: 70.824 ms
+```
+
+1. The previous parallel sequential scan was replaced with an [index scan](https://www.postgresql.org/docs/current/index-scanning.html) which is much faster.
+{.callouts}
+
+```sql {title="Execution plan of the &quot;count&quot; query with a non-covering index"}
+ Aggregate  (cost=587672.27..587672.28 rows=1 width=8) (actual time=452.095..452.096 rows=1 loops=1)
+   ->  Nested Loop  (cost=0.56..587274.13 rows=159255 width=16) (actual time=41.065..441.346 rows=160000 loops=1)
+         ->  Seq Scan on weather_station ws  (cost=0.00..2.25 rows=1 width=16) (actual time=41.031..41.039 rows=1 loops=1)
+               Filter: (name = 'weather-station-17'::text)
+               Rows Removed by Filter: 99
+         ->  Index Scan using ix_btree_weather_station_id_received_at_non_covering on weather_report wr  (cost=0.56..585679.33 rows=159255 width=32) (actual time=0.023..384.034 rows=160000 loops=1) -- <1>
+               Index Cond: ((weather_station_id = ws.id) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
+ Planning Time: 0.141 ms
+ JIT:
+   Functions: 9
+   Options: Inlining true, Optimization true, Expressions true, Deforming true
+   Timing: Generation 0.615 ms (Deform 0.204 ms), Inlining 13.385 ms, Optimization 16.098 ms, Emission 11.561 ms, Total 41.658 ms
+ Execution Time: 452.780 ms
+```
+
+1. The previous parallel sequential scan was replaced with an [index scan](https://www.postgresql.org/docs/current/index-scanning.html), which is faster but still not fast enough because PostgreSQL must fetch additional columns from the table.
+{.callouts}
+
+Execution times have dropped from 2069 ms to 71 ms for the "fetch" query and from 2035 ms to 453 ms for the "count" query.
+Much better, but there's still room for improvement!
+
+### Introducing covering B-Tree indexes
+
+> [!NOTE]
+> A [covering index](https://www.postgresql.org/docs/current/indexes-index-only-scans.html) is an index that includes all the columns needed for a query, allowing PostgreSQL to retrieve data entirely from the index without accessing the main table (heap fetch).
+> This improves performance by reducing disk I/O, but comes at the cost of increased storage usage.
+
+Let's replace our previous non-covering indexes with covering indexes for better performance.
+
+```sql
+create index ix_btree_received_at_weather_station_id_covering
+on weather_report using btree (received_at desc, weather_station_id) include (id, data); -- <1>
+```
+
+1. The `INCLUDE` clause for covering indexes was introduced in PostgreSQL 11.
+   If you're using an older version, you'll need to add the `id` and `data` columns at the end of the index definition instead.
+{.callouts}
+
+```sql
+create index ix_btree_weather_station_id_received_at_covering
+on weather_report using btree (weather_station_id, received_at desc) include (id, data);
+```
+
+Does that make our queries run faster?
+
+```sql {title="Execution plan of the &quot;fetch&quot; query with a covering index"}
+ Limit  (cost=6641.57..7471.70 rows=100 width=57) (actual time=27.223..29.976 rows=100 loops=1)
+   ->  Nested Loop  (cost=0.56..1336188.27 rows=160962 width=57) (actual time=0.156..29.946 rows=900 loops=1)
+         Join Filter: (wr.weather_station_id = ws.id)
+         Rows Removed by Join Filter: 89092 -- <1>
+         ->  Index Only Scan using ix_btree_received_at_weather_station_id_covering on weather_report wr  (cost=0.56..1094743.50 rows=16096168 width=73) (actual time=0.030..11.414 rows=89992 loops=1) -- <2>
+               Index Cond: (received_at >= '2025-03-06 00:00:00'::timestamp without time zone)
+               Heap Fetches: 0
+         ->  Materialize  (cost=0.00..2.25 rows=1 width=16) (actual time=0.000..0.000 rows=1 loops=89992)
+               ->  Seq Scan on weather_station ws  (cost=0.00..2.25 rows=1 width=16) (actual time=0.018..0.035 rows=1 loops=1)
+                     Filter: (name = 'weather-station-17'::text)
+                     Rows Removed by Filter: 99
+ Planning Time: 0.472 ms
+ Execution Time: 30.018 ms
+```
+
+1. Filtering out 89,092 rows after the join is inefficient.
+   We'll need to fix that later.
+2. The previous index scan was replaced with an [index-only scan](https://www.postgresql.org/docs/current/indexes-index-only-scans.html) which is significantly faster.
+{.callouts}
+
+```sql {title="Execution plan of the &quot;count&quot; query with a covering index"}
+ Aggregate  (cost=13390.08..13390.09 rows=1 width=8) (actual time=31.861..31.862 rows=1 loops=1)
+   ->  Nested Loop  (cost=0.56..12987.67 rows=160962 width=16) (actual time=0.018..26.090 rows=160000 loops=1)
+         ->  Seq Scan on weather_station ws  (cost=0.00..2.25 rows=1 width=16) (actual time=0.005..0.016 rows=1 loops=1)
+               Filter: (name = 'weather-station-17'::text)
+               Rows Removed by Filter: 99
+         ->  Index Only Scan using ix_btree_weather_station_id_received_at_covering on weather_report wr  (cost=0.56..11375.80 rows=160962 width=32) (actual time=0.012..17.698 rows=160000 loops=1) -- <1>
+               Index Cond: ((weather_station_id = ws.id) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
+               Heap Fetches: 0
+ Planning Time: 0.139 ms
+ Execution Time: 31.886 ms
+```
+
+1. The previous index scan was replaced with an [index-only scan](https://www.postgresql.org/docs/current/indexes-index-only-scans.html) which is much faster.
+{.callouts}
+
+Compared to non-covering indexes, execution times have dropped from 71 ms to 30 ms for the "fetch" query and from 453 ms to 32 ms for the "count" query.
+That's awesome, but we're not done optimizing these queries yet!
+
+### Introducing a BRIN index
+
+> [!NOTE]
+> A [BRIN index](https://www.postgresql.org/docs/current/brin.html) is a lightweight index that stores summary metadata (min and max values) for block ranges instead of indexing every row.
+> It is ideal for large, append-only tables with naturally ordered data, such as time-series or logs, offering fast lookups with minimal storage overhead.
+
+That sounds like a great index for the `received_at` column.
+Here's how to create it:
+
+```sql
+create index ix_brin_received_at
+on weather_report using brin (received_at);
+```
+
+Unfortunately, that index doesn't help reduce the execution time of our queries.
+A BRIN index is only effective when data is physically sorted, but since `weather_report` records are deleted after 30 days, they are not stored in natural order.
+If the records were not removed, a BRIN index could have been a great way to improve query performance.
+
+PostgreSQL provides a command that physically reorders a table based on an index: [CLUSTER](https://www.postgresql.org/docs/current/sql-cluster.html).
+However, BRIN indexes do not support clustering.
+
+## Indexes come at a cost
+
+Run this query to check how much disk space your indexes are using:
+
+```sql
+select indexname, pg_size_pretty(pg_relation_size(indexname::regclass))
+from pg_indexes
+where tablename = 'weather_report';
+```
+
+Covering B-Tree indexes can be quite expensive and sometimes use nearly as much disk space as the table itself.
+On the other hand, BRIN indexes use a very small amount of disk space.
+
+```sql
+                      indexname                       | pg_size_pretty
+------------------------------------------------------+----------------
+ pk_weather_report                                    | 2337 MB
+ ix_btree_received_at_weather_station_id_non_covering | 1159 MB
+ ix_btree_weather_station_id_received_at_non_covering | 1162 MB
+ ix_btree_received_at_weather_station_id_covering     | 2977 MB
+ ix_btree_weather_station_id_received_at_covering     | 2986 MB
+ ix_brin_received_at                                  | 176 kB
+```
+
+Indexes also slow down `INSERT`, `UPDATE` and `DELETE` queries.
+Every time a row is modified, PostgreSQL must update the corresponding index entries.
+This overhead on write operations is especially noticeable with high insert-rate workloads.
+
+> [!TIP]
+> You can check the impact of indexes on write performance by analyzing execution plans or running [benchmark tests](https://www.postgresql.org/docs/current/pgbench.html) on your database.
+
+```sql {title="Explaining an insert query"}
+explain analyze
+insert into weather_report (data, received_at, weather_station_id)
+values ('Sunny day', now(), 'be9a5a83-f789-41dd-8023-cd3df445f055');
+```
+
+## Writing smarter queries
+
+Indexes can really boost performance, but they can't automagically fix a poorly written query.
+
+In the current "fetch" query, PostgreSQL retrieves 89,992 rows and then filters out 89,092 of them.
+That doesn't look right.
+Let's see what happens if we replace the join with a subquery:
+
+```sql
+explain analyze
+select id, data, received_at
+from weather_report
+where received_at >= '2025-03-06'
+and weather_station_id =
+(select id from weather_station where name = 'weather-station-17')
+order by received_at desc
+offset 800 limit 100;
+```
+
+```sql {title="Execution plan of the &quot;fetch&quot; query with subquery"}
+ Limit  (cost=59.35..66.42 rows=100 width=57) (actual time=0.146..0.162 rows=100 loops=1)
+   InitPlan 1
+     ->  Seq Scan on weather_station  (cost=0.00..2.25 rows=1 width=16) (actual time=0.008..0.014 rows=1 loops=1)
+           Filter: (name = 'weather-station-17'::text)
+           Rows Removed by Filter: 99
+   ->  Index Only Scan using ix_btree_weather_station_id_received_at_covering on weather_report  (cost=0.56..11375.80 rows=160962 width=57) (actual time=0.029..0.139 rows=900 loops=1) -- <1>
+         Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
+         Heap Fetches: 0
+ Planning Time: 0.095 ms
+ Execution Time: 0.177 ms
+```
+
+1. The query planner is now using a different index.
+{.callouts}
+
+Wow, that's an incredible improvement!
+The query that originally took 2069 ms without an index now runs in under 1 ms.
+How is that even possible?
+
+The subquery helped move filtering _before_ scanning.
+Because of that, PostgreSQL no longer has to fetch 89,992 rows and perform a materialized lookup for each one.
+That was a lot of unnecessary work.
+It's gone now.
+
+What about the "count" query?
+Could a subquery help reduce its execution time as well?
+
+```sql
+explain analyze
+select count(*)
+from weather_report
+where received_at >= '2025-03-06'
+and weather_station_id =
+(select id from weather_station where name = 'weather-station-17');
+```
+
+```sql {title="Execution plan of the &quot;count&quot; query with a subquery"}
+ Finalize Aggregate  (cost=11606.99..11607.00 rows=1 width=8) (actual time=19.492..22.322 rows=1 loops=1)
+   InitPlan 1
+     ->  Seq Scan on weather_station  (cost=0.00..2.25 rows=1 width=16) (actual time=0.007..0.013 rows=1 loops=1)
+           Filter: (name = 'weather-station-17'::text)
+           Rows Removed by Filter: 99
+   ->  Gather  (cost=11604.53..11604.74 rows=2 width=8) (actual time=19.455..22.317 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Partial Aggregate  (cost=10604.53..10604.54 rows=1 width=8) (actual time=8.007..8.007 rows=1 loops=3)
+               ->  Parallel Index Only Scan using ix_btree_weather_station_id_received_at_covering on weather_report  (cost=0.56..10436.86 rows=67068 width=0) (actual time=0.038..6.107 rows=53333 loops=3)
+                     Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
+                     Heap Fetches: 0
+ Planning Time: 0.093 ms
+ Execution Time: 22.346 ms
+```
+
+It's not as impressive as the "fetch" query, but the subquery still significantly improves performance by allowing parallel scans and aggregation.
+
+## Keep your visibility map clean
+
+Covering B-Tree indexes can greatly improve query performance, but they have a weakness you should be aware of: heap fetches.
+A covering index allows a query to retrieve data entirely from the index without accessing the main table (heap), which would otherwise be expensive.
+However, this only works efficiently if the [visibility map](https://www.postgresql.org/docs/current/storage-vm.html) marks all necessary heap pages as "all-visible".
+If tuples are updated or deleted from a page and vacuum has not run, that page gets marked as "dirty" in the visibility map and PostgreSQL is forced to fetch rows from the heap, slowing down the query.
+
+> [!NOTE]
+> [VACUUM](https://www.postgresql.org/docs/current/sql-vacuum.html) removes dead tuples left behind by `UPDATE` and `DELETE` operations while updating the visibility map to minimize unnecessary heap fetches.
+
+### When should a table be vacuumed?
+
+A good indicator is the execution plan: if you see heap fetches there, it means the visibility map isn’t up to date.
+
+```sql
+[...]
+->  Index Only Scan [...]
+      [...]
+      Heap Fetches: 87 -- <1>
+[...]
+```
+
+1. PostgreSQL retrieved 87 rows from the heap, which suggests the table may need vacuuming.
+{.callouts}
+
+You can also check the number of dead tuples by querying the [pg_stat_user_tables](https://www.postgresql.org/docs/current/monitoring-stats.html#MONITORING-PG-STAT-ALL-TABLES-VIEW) view:
+
+```sql
+select relname, n_live_tup, n_dead_tup, last_autovacuum
+from pg_stat_user_tables
+order by n_dead_tup desc;
+```
+
+If `n_dead_tup` is high relative to `n_live_tup`, the table likely needs vacuuming.
+
+### How can a table be vacuumed?
+
+PostgreSQL [vacuums automatically](https://www.postgresql.org/docs/current/runtime-config-autovacuum.html) based on the number of dead tuples in a table.
+By default, autovacuum is triggered when the number of dead tuples exceeds 50 + 20% of the total number of tuples in the table.
+However, the default autovacuum settings are often not aggressive enough when data is removed daily, as in our use case.
+
+Autovacuum settings can be tuned for a specific table:
+
+```sql
+alter table weather_report
+set (
+    autovacuum_vacuum_threshold = 0, -- <1>
+    autovacuum_vacuum_scale_factor = 0.02 -- <2>
+); -- <3>
+```
+
+1. Minimum number of updated or deleted tuples needed to trigger an autovacuum. Defaults to `50`.
+2. Fraction of the table size to add to `autovacuum_vacuum_threshold` when deciding whether to trigger an autovacuum. Defaults to `0.2`.
+3. PostgreSQL will trigger an autovacuum when 2% of the table tuples are dead, instead of the default 50 + 20%.
+{.callouts}
+
+If your data is removed in a single batch as part of a daily maintenance task, a better approach is to run a manual vacuum afterward:
+
+```sql
+vacuum analyze weather_report;
+```
+
+> [!TIP]
+> [ANALYZE](https://www.postgresql.org/docs/current/sql-analyze.html) updates statistics that help the query planner choose the most efficient execution plan.
+> Running it alongside vacuum is usually a good practice.
+
+> [!NOTE]
+> All execution plans in this post were generated after running a manual `VACUUM ANALYZE`.
+
+## Partitioning the `weather_report` table {#partitioning legacy="partitioning-the-weather_report-table"}
+
+> [!NOTE]
+> [Partitioning](https://www.postgresql.org/docs/current/ddl-partitioning.html) a table speeds up queries by allowing PostgreSQL to scan only the relevant partition instead of the entire table.
+> When each partition is indexed, the indexes are smaller and more focused, making lookups faster and more efficient.
+
+### Schema changes required for partitioning
+
+Partitioning the `weather_report` table requires a few changes to the table schema:
+
+```sql
+create table weather_report (
+    id uuid not null default gen_random_uuid(),
+    data text not null,
+    received_at timestamp not null,
+    weather_station_id uuid not null,
+    constraint fk_weather_report_weather_station foreign key (weather_station_id) references weather_station (id)
+) partition by range (received_at); -- <1>
+```
+
+1. Each partition will contain a distinct and continuous range of `received_at` values.
+{.callouts}
+
+Until now, the `id` column was the primary key of the `weather_report` table.
+That won't work with partitions, as the primary key defined on the parent table _must_ include the partition key (`received_at`).
+It's still possible to define a primary key on `id` within each child partition, but this doesn't guarantee uniqueness across all partitions.
+This limitation can be addressed in various ways, such as using a [trigger](https://www.postgresql.org/docs/current/sql-createtrigger.html) to enforce uniqueness on the `id` column.
+However, this goes beyond the scope of this post, so I won’t go into further detail.
+
+### Creating and dropping partitions
+
+Each day requires a new partition:
+
+```sql
+create table weather_report_2023_03_21
+partition of weather_report for values from ('2023-03-21') to ('2023-03-22'); -- <1>
+```
+
+1. The lower bound is inclusive and the upper bound is exclusive.
+{.callouts}
+
+Deleting weather reports older than 30 days couldn't be easier: just drop the oldest partition.
+
+```sql
+drop table weather_report_2023_02_19; -- <1>
+```
+
+1. Finding the oldest partition can be automated.
+   Check out the [gwenneg/blog-postgres-execution-time](https://github.com/gwenneg/blog-postgres-execution-time/blob/main/partitioned-table/sql/init.sql) repository for more details.
+{.callouts}
+
+> [!TIP]
+> PostgreSQL doesn't automatically refresh the parent table's statistics or the query planner's metadata after dropping a partition.
+> Run `VACUUM ANALYZE` on the parent table to update them manually.
+
+### Indexing partitions
+
+> [!TIP]
+> If you create an index on the parent table, PostgreSQL automatically creates local indexes with the same definition on each existing and future partition.
+
+We already know which indexing strategy performs best with a regular `weather_report` table (without partitions).
+Let's reuse it with the partitioned `weather_report` table:
+
+```sql
+create index ix_btree_weather_station_id_received_at_covering
+on weather_report using btree (weather_station_id, received_at desc) include (id, data);
+```
+
+The partitioned index is similar to the regular index in terms of disk space usage:
+
+```sql
+                           index_name                              | index_size
+-------------------------------------------------------------------+------------
+ ix_btree_weather_station_id_received_at_covering                  | 0 bytes -- <1>
+ weather_report_2025_02_20_weather_station_id_received_at_id_d_idx | 100 MB
+ weather_report_2025_02_21_weather_station_id_received_at_id_d_idx | 100 MB
+ [...]
+ weather_report_2025_03_21_weather_station_id_received_at_id_d_idx | 100 MB -- <2>
+```
+
+1. This is the index definition that is inherited by each partition.
+   It’s not an actual index and its size will never grow.
+2. The total size of the index across all partitions is 3000 MB.
+{.callouts}
+
+### Performance with partitions
+
+Does partitioning improve query performance?
+
+```sql {title="Execution plan of the &quot;fetch&quot; query with partitions"}
+ Limit  (cost=70.01..77.63 rows=100 width=57) (actual time=0.408..0.456 rows=100 loops=1)
+   InitPlan 1
+     ->  Seq Scan on weather_station  (cost=0.00..2.25 rows=1 width=16) (actual time=0.018..0.031 rows=1 loops=1)
+           Filter: (name = 'weather-station-17'::text)
+           Rows Removed by Filter: 99
+   ->  Append  (cost=6.80..12198.40 rows=159984 width=57) (actual time=0.065..0.401 rows=900 loops=1)
+         ->  Index Only Scan using weather_report_2025_03_21_weather_station_id_received_at_id_d_idx on weather_report_2025_03_21  (cost=0.42..712.40 rows=9999 width=57) (actual time=0.065..0.308 rows=900 loops=1)
+               Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
+               Heap Fetches: 0
+         ->  Index Only Scan using weather_report_2025_03_20_weather_station_id_received_at_id_d_idx on weather_report_2025_03_20  (cost=0.42..712.40 rows=9999 width=57) (never executed)
+               Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
+               Heap Fetches: 0
+         [...] -- <1>
+         ->  Index Only Scan using weather_report_2025_03_06_weather_station_id_received_at_id_d_idx on weather_report_2025_03_06  (cost=0.42..712.40 rows=9999 width=57) (never executed)
+               Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
+               Heap Fetches: 0
+ Planning Time: 0.793 ms
+ Execution Time: 0.574 ms
+```
+
+1. The execution plan has been cropped for readability.
+   The omitted section involves scanning data from 13 additional partitions.
+{.callouts}
+
+```sql {title="Execution plan of the &quot;count&quot; query with partitions"}
+ Finalize Aggregate  (cost=12242.11..12242.12 rows=1 width=8) (actual time=17.946..20.509 rows=1 loops=1)
+   InitPlan 1
+     ->  Seq Scan on weather_station  (cost=0.00..2.25 rows=1 width=16) (actual time=0.025..0.044 rows=1 loops=1)
+           Filter: (name = 'weather-station-17'::text)
+           Rows Removed by Filter: 99
+   ->  Gather  (cost=12239.64..12239.85 rows=2 width=8) (actual time=17.825..20.499 rows=3 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         ->  Partial Aggregate  (cost=11239.64..11239.65 rows=1 width=8) (actual time=12.684..12.688 rows=1 loops=3)
+               ->  Parallel Append  (cost=0.42..11073.00 rows=66656 width=0) (actual time=0.045..10.572 rows=53333 loops=3)
+                     ->  Parallel Index Only Scan using weather_report_2025_03_06_weather_station_id_received_at_id_d_idx on weather_report_2025_03_06  (cost=0.42..671.23 rows=5882 width=0) (actual time=0.041..1.431 rows=10000 loops=1)
+                           Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
+                           Heap Fetches: 0
+                     ->  Parallel Index Only Scan using weather_report_2025_03_07_weather_station_id_received_at_id_d_idx on weather_report_2025_03_07  (cost=0.42..671.23 rows=5882 width=0) (actual time=0.040..1.434 rows=10000 loops=1)
+                           Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
+                           Heap Fetches: 0
+                     [...] -- <1>
+                     ->  Parallel Index Only Scan using weather_report_2025_03_21_weather_station_id_received_at_id_d_idx on weather_report_2025_03_21  (cost=0.42..671.23 rows=5882 width=0) (actual time=0.052..2.213 rows=10000 loops=1)
+                           Index Cond: ((weather_station_id = (InitPlan 1).col1) AND (received_at >= '2025-03-06 00:00:00'::timestamp without time zone))
+                           Heap Fetches: 0
+ Planning Time: 0.931 ms
+ Execution Time: 20.670 ms
+```
+
+1. The execution plan has been cropped for readability.
+   The omitted section involves scanning data from 13 additional partitions.
+{.callouts}
+
+Well, partitioning didn't really help in our case.
+The "fetch" query is slightly slower, although still extremely fast.
+The execution time of the "count" query improved a bit - from 22 ms to 20 ms - which may or may not be a meaningful difference.
+Execution times can vary between runs of `EXPLAIN ANALYZE` and only proper [benchmarking](https://www.postgresql.org/docs/current/pgbench.html) will confirm whether this is a real performance gain.
+
+That doesn't mean partitioning is not worth the effort, but it usually makes sense for larger tables.
+In our case, the `weather_report` table contains only 30 million records which isn't quite enough to see real benefits from partitioning.
+You might start noticing small performance gains around 100 million records, with more significant improvements as your table grows to several hundred million or even a billion rows.
+
+> [!TIP]
+> Partitioning comes with extra complexity, such as dealing with constraints and maintaining partitions and indexes.
+> Make sure you've explored all indexing strategies before deciding to partition your tables.
+
+## Fine-tuning statistics
+
+> [!NOTE]
+> PostgreSQL uses [ANALYZE](https://www.postgresql.org/docs/current/sql-analyze.html) to collect table [statistics](https://www.postgresql.org/docs/current/planner-stats.html) and help the query planner choose the most efficient way to run queries.
+
+By default, PostgreSQL analyzes tables using the [default_statistics_target](https://www.postgresql.org/docs/current/runtime-config-query.html#GUC-DEFAULT-STATISTICS-TARGET) setting, which defaults to 100.
+You can change this value globally or tweak it for specific columns if needed.
+Before you do, keep in mind that `ANALYZE` samples approximately `300 x statistics_target` rows.
+With the default configuration, PostgreSQL samples around 30,000 rows.
+
+Here's how statistics can be changed for a specific column:
+
+```sql
+alter table weather_report
+alter column received_at set statistics 1000; -- <1>
+```
+
+1. After this change, `ANALYZE` will sample approximately 300,000 rows from the `weather_report` table.
+{.callouts}
+
+Increasing statistics on a column can help the query planner generate better execution plans and speed up queries, but it will also make `ANALYZE` slower.
+Consider it when:
+
+- The column has many distinct values (e.g. UUIDs, timestamps).
+- The column is used frequently in `WHERE` clauses with highly selective filters.
+- The planner misestimates row counts, leading to poor query plans.
+
+```sql {title="Misestimation of row counts in an execution plan"}
+[...]
+   ->  Nested Loop  (cost=0.56..13949593.89 rows=160683 width=57) (actual time=0.210..63.221 rows=900 loops=1) -- <1>
+[...]
+```
+
+1. The query planner estimated 160,683 rows but the actual execution only returned 900 rows.
+{.callouts}
+
+> [!TIP]
+> Always run `ANALYZE` after changing statistics to apply the updates.
+
+## Increasing the work memory
+
+> [!NOTE]
+> The [work memory](https://www.postgresql.org/docs/current/runtime-config-resource.html) is the amount of memory PostgreSQL can use for certain operations within a query such as sorting, hashing and aggregations, before spilling data to disk.
+> Increasing it can improve performance by reducing expensive disk I/O.
+> The default `work_mem` setting is 4MB per query operation.
+
+The work memory can be increased at different levels:
+
+```sql
+ALTER SYSTEM SET work_mem = '128MB'; -- <1>
+ALTER ROLE gwenneg SET work_mem = '128MB'; -- <2>
+SET work_mem = '128MB'; -- <3>
+SET LOCAL work_mem = '128MB'; -- <4>
+```
+
+1. This permanently changes the work memory for all sessions and queries.
+   Run `SELECT pg_reload_conf();` afterward to apply the change.
+2. This permanently changes the work memory for a specific role or user.
+3. This changes the work memory for the current session only.
+4. This changes the work memory for the current transaction only.
+{.callouts}
+
+If you see `external merge` or `disk batches` in an execution plan, it means PostgreSQL had to rely on disk instead of keeping operations in memory.
+That's how you know the work memory could be increased.
+
+```sql
+[...]
+Sort Method: external merge  Disk: 10240kB
+[...]
+Hash Join
+  Hash Batches: 32  Disk Batches: 8
+[...]
+```
+
+> [!WARNING]
+> Setting `work_mem` too high can significantly increase memory usage, especially when multiple queries run in parallel, potentially leading to out-of-memory errors.
+
+## Conclusion
+
+There are other ways to optimize PostgreSQL query performance.
+[Partial indexes](https://www.postgresql.org/docs/current/indexes-partial.html) and tuning [WAL settings](https://www.postgresql.org/docs/current/wal-configuration.html), for example, can be powerful tools depending on your workload.
+But this post should already give you a solid foundation with some of the most impactful techniques.
+
+Thanks for reading!
+Hopefully, you’ve learned a thing or two that you can apply in your own environment to make your queries faster.
+If you’ve got tips or experiences to share, I’d love to hear them!
+
+Happy optimizing!

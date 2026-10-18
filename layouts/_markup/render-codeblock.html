@@ -1,0 +1,54 @@
+{{- /*
+  Code blocks with callouts. A line ending with `<1>`, `// <1>`, `# <1>` or `-- <1>` gets a numbered
+  badge, and the marker is removed from the copied code. The explanations are a list marked {.callouts}.
+*/ -}}
+{{- $re := `\s*(?://\s*|#\s*|--\s*)?<(\d+)>\s*$` -}}
+{{- $clean := slice -}}
+{{- $marks := dict -}}
+{{- range $i, $l := split (strings.TrimRight "\n" .Inner) "\n" -}}
+  {{- if findRE `\\<\d+>\s*$` $l 1 -}}
+    {{- /* `\<1>` is a literal `<1>`, not a callout */ -}}
+    {{- $l = replaceRE `\\(<\d+>\s*)$` "$1" $l -}}
+  {{- else -}}
+    {{- with findRESubmatch $re $l 1 -}}
+      {{- $marks = merge $marks (dict (string $i) (index (index . 0) 1)) -}}
+      {{- $l = replaceRE $re "" $l -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $clean = $clean | append $l -}}
+{{- end -}}
+{{- $code := delimit $clean "\n" -}}
+{{- $lang := .Type | default "text" -}}
+{{- /* the start of a code line: highlighted lines (hl_lines) add a class, and inline line numbers add a span */ -}}
+{{- $lineStart := `<span class="line[^"]*">(?:<span class="ln"[^>]*>[^<]*</span>)?<span class="cl">` -}}
+{{- $hl := string (transform.Highlight $code $lang .Options) -}}
+{{- if not (findRE $lineStart $hl 1) -}}
+  {{- /* a language the highlighter does not know: render it as plain text, with line wrappers */ -}}
+  {{- $hl = string (transform.Highlight $code "text" .Options) -}}
+{{- end -}}
+{{- $parts := split (replaceRE (printf "(%s)" $lineStart) "\x00$1" $hl) "\x00" -}}
+{{- if and $marks (ne (len $parts) (add (len $clean) 1)) -}}
+  {{- errorf "%s: code block with callouts has %d lines but the highlighter returned %d, check render-codeblock.html against its output" .Page.File.Path (len $clean) (sub (len $parts) 1) -}}
+{{- end -}}
+{{- $out := index $parts 0 -}}
+{{- range $i, $p := after 1 $parts -}}
+  {{- with index $marks (string $i) -}}
+    {{- /* the number is drawn by CSS from data-n, so selecting the code by hand never copies it */ -}}
+    {{- $badge := printf `<span class="co" data-n="%s"></span>` . -}}
+    {{- if strings.Contains $p "\n</span></span>" -}}
+      {{- $p = replace $p "\n</span></span>" (printf "%s\n</span></span>" $badge) 1 -}}
+    {{- else -}}
+      {{- $p = replace $p "</span></span>" (printf "%s</span></span>" $badge) 1 -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $out = printf "%s%s" $out $p -}}
+{{- end -}}
+{{- if and $marks (not (strings.Contains $out `<span class="co" `)) -}}
+  {{- /* the highlighter's HTML changed and no badge found its line: fail the build rather than lose them silently */ -}}
+  {{- errorf "%s: code block callouts could not be placed, check render-codeblock.html against the highlighter's output" .Page.File.Path -}}
+{{- end -}}
+{{- $title := .Attributes.title | default "" | htmlUnescape -}}
+<figure class="code" data-pagefind-weight="0.5">
+  <div class="code-bar" data-pagefind-ignore>{{ with $title }}<span class="fname">{{ . }}</span>{{ end }}<span class="lang">{{ .Type }}</span><button class="copy" type="button">copy</button></div>
+  {{- $out | safeHTML -}}
+</figure>

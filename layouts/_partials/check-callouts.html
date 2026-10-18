@@ -1,0 +1,28 @@
+{{- /*
+  Fails the build when a post's callouts don't line up, as Asciidoctor warned about them:
+  - the numbers in a code block must be exactly 1 to N, where N is the number of items in its {.callouts} list
+  - a {.callouts} list must come right after its code block
+  It renders nothing.
+*/ -}}
+{{- $html := string .Content -}}
+{{- $path := .File.Path -}}
+{{- $paired := 0 -}}
+{{- range $i, $b := findRESubmatch `(?s)<figure class="code"[^>]*>(.*?)</figure>\s*(<ol class="callouts">(.*?)</ol>)?` $html -}}
+  {{- $list := index $b 3 -}}
+  {{- if index $b 2 }}{{ $paired = add $paired 1 }}{{ end -}}
+  {{- $nums := slice -}}
+  {{- range findRESubmatch `<span class="co" data-n="(\d+)"` (index $b 1) }}{{ $nums = $nums | append (int (index . 1)) }}{{ end -}}
+  {{- $items := len (findRE `<li\b` $list) -}}
+  {{- if findRE `<[ou]l\b` $list -}}
+    {{- errorf "%s: code block %d: a {.callouts} list cannot contain a nested list" $path (add $i 1) -}}
+  {{- end -}}
+  {{- $want := slice -}}
+  {{- if $items }}{{ range seq $items }}{{ $want = $want | append . }}{{ end }}{{ end -}}
+  {{- $got := delimit (sort (uniq $nums)) "," -}}
+  {{- if ne $got (delimit $want ",") -}}
+    {{- errorf "%s: code block %d has callouts [%s] but its {.callouts} list has %d items" $path (add $i 1) $got $items -}}
+  {{- end -}}
+{{- end -}}
+{{- with sub (len (findRE `<ol class="callouts">` $html)) $paired -}}
+  {{- errorf "%s: %d {.callouts} list(s) not directly after a code block" $path . -}}
+{{- end -}}

@@ -1,0 +1,29 @@
+{{ define "main" }}
+<main class="wrap" id="main">
+  <div class="home-main">
+    <section class="whoami">
+      <div class="prompt"><span class="glyph" aria-hidden="true">❯</span><span>whoami</span></div>
+      <div class="whoami-id">
+        {{ partial "avatar.html" (dict "size" 112 "class" "whoami-photo" "alt" site.Params.author.name "lazy" false) }}
+        <div class="whoami-text">
+          <h1>{{ site.Params.author.name }}</h1>
+          <p>{{ site.Params.author.intro }}</p>
+          <div class="links">
+            <a href="{{ site.Params.author.github }}" target="_blank" rel="noopener">github</a>
+            <a href="{{ site.Params.author.linkedin }}" target="_blank" rel="noopener">linkedin</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="prompt"><span class="glyph" aria-hidden="true">❯</span><span>ls -t posts/<span class="cursor" aria-hidden="true"></span></span></div>
+    <p class="shell-comment"><span aria-hidden="true"># </span>{{ site.Params.description }}</p>
+    {{- range (where site.RegularPages "Section" "posts").GroupByDate "2006" }}
+    <h2 class="year">{{ .Key }}</h2>
+    <ol class="rows">
+      {{- range .Pages }}{{ partial "post-row.html" (dict "page" . "withYear" false) }}{{ end }}
+    </ol>
+    {{- end }}
+  </div>
+</main>
+{{ end }}

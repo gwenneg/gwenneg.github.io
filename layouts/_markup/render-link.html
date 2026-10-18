@@ -1,0 +1,6 @@
+{{- /* Every link opens in a new tab, except links to a section of the same page and links to the reader's own machine (localhost), as on the Jekyll site. */ -}}
+{{- /* the host is matched on the raw address: urls.Parse fails the build on a malformed one, such as a stray % */ -}}
+{{- $local := findRE `(?i)^[a-z][a-z0-9+.-]*://(localhost|127\.0\.0\.1)([:/?#]|$)` .Destination 1 -}}
+{{- $inPage := or (strings.HasPrefix .Destination "#") (gt (len $local) 0) -}}
+<a href="{{ .Destination | safeURL }}"{{ with .Title }} title="{{ . }}"{{ end }}{{ if not $inPage }} target="_blank" rel="noopener"{{ end }}>{{ .Text }}</a>
+{{- /* chomp trailing newline */ -}}

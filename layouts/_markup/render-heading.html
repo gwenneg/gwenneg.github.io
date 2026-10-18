@@ -1,0 +1,6 @@
+{{- /*
+  Two optional heading attributes:
+  - {.unnumbered} leaves a section out of the numbering, in posts with sectnums: true.
+  - legacy="old-id" keeps an anchor from the old AsciiDoc site working, so links shared before the migration still land on the section.
+*/ -}}
+<h{{ .Level }} id="{{ .Anchor }}"{{ with .Attributes.class }} class="{{ . }}"{{ end }}>{{ with .Attributes.legacy }}<span class="legacy-anchor" id="{{ . }}"></span>{{ end }}{{ if in (slice 2 3) .Level }}<a class="hm" data-pagefind-ignore href="#{{ .Anchor }}" aria-label="Link to this section"><span>{{ strings.Repeat .Level "#" }}</span></a>{{ end }}{{ .Text }}</h{{ .Level }}>

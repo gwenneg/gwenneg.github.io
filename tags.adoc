@@ -1,7 +1,0 @@
----
-author_profile: true
-classes: wide
-layout: tags
-permalink: /tags/
-title: "Posts by Tag"
----

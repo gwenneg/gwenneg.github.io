@@ -1,0 +1,32 @@
+{{- /*
+  A standalone image becomes a figure. Its Markdown title is the caption, shown above the image.
+  Add {.bordered} on the next line for a screenshot that could be mistaken for post text.
+  {width="85%"} (or a px value) keeps the width an image had in the AsciiDoc posts. New posts don't set one (CLAUDE.md).
+*/ -}}
+{{- $size := "" -}}
+{{- $file := path.Join "static" .Destination -}}
+{{- /* width and height reserve the image's space, so the page doesn't shift and section links land right */ -}}
+{{- if and (strings.HasPrefix .Destination "/") (os.FileExists $file) -}}
+{{- if strings.HasSuffix .Destination ".svg" -}}
+{{- with index (findRESubmatch `viewBox="[\d.-]+[ ,]+[\d.-]+[ ,]+([\d.]+)[ ,]+([\d.]+)"` (readFile $file) 1) 0 -}}
+{{- $size = printf ` width="%d" height="%d"` (int (math.Round (float (index . 1)))) (int (math.Round (float (index . 2)))) -}}
+{{- end -}}
+{{- else -}}
+{{- with images.Config $file }}{{ $size = printf ` width="%d" height="%d"` .Width .Height }}{{ end -}}
+{{- end -}}
+{{- end -}}
+{{- /* the header image is at the top of the post: lazy loading would only delay it */ -}}
+{{- $style := "" -}}
+{{- with .Attributes.width -}}
+{{- if not (findRE `^\d+(\.\d+)?(%|px)$` .) }}{{ errorf "%s: image width %q must be a percentage or a px value" $.Page.File.Path . }}{{ end -}}
+{{- $style = printf ` style="width: %s"` . -}}
+{{- end -}}
+{{- $loading := cond (eq (path.Base .Destination) "header.png") ` fetchpriority="high"` ` loading="lazy"` -}}
+{{- if .IsBlock -}}
+<figure class="shot{{ with .Attributes.class }} {{ . }}{{ end }}{{ with .Title }} titled{{ end }}">
+  {{- with .Title }}<figcaption>{{ . }}</figcaption>{{ end -}}
+  <img src="{{ .Destination | safeURL }}" alt="{{ .PlainText }}"{{ $size | safeHTMLAttr }}{{ $style | safeHTMLAttr }}{{ $loading | safeHTMLAttr }} decoding="async">
+</figure>
+{{- else -}}
+<img src="{{ .Destination | safeURL }}" alt="{{ .PlainText }}"{{ with .Title }} title="{{ . }}"{{ end }}{{ $size | safeHTMLAttr }}{{ $style | safeHTMLAttr }}{{ $loading | safeHTMLAttr }} decoding="async">
+{{- end -}}

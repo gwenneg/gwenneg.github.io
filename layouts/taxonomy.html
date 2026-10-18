@@ -1,0 +1,15 @@
+{{ define "main" }}
+<main class="wrap" id="main">
+  <div class="home-main">
+    <div class="prompt"><span class="glyph" aria-hidden="true">❯</span><span>ls tags/<span class="cursor" aria-hidden="true"></span></span></div>
+    <h1 class="page-title">Tags</h1>
+    <ul class="tag-cloud">
+      {{- range .Data.Terms.Alphabetical }}
+      {{- /* the id is the anchor the old Jekyll tags page used, so /tags/#claude-code links still find the tag */}}
+      {{- $label := partial "tag-label.html" .Page.LinkTitle }}
+      <li id="{{ replace $label "." "-" }}"><a href="{{ .Page.RelPermalink }}"><span class="name">{{ $label }}</span><span class="count">{{ .Count }}</span></a></li>
+      {{- end }}
+    </ul>
+  </div>
+</main>
+{{ end }}

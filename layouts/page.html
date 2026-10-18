@@ -1,0 +1,49 @@
+{{ define "main" }}
+{{- partial "check-callouts.html" . }}
+<main class="wrap" id="main">
+  <div class="post-shell" id="shell">
+    <article>
+      <header class="post-head">
+        <div class="prompt"><span class="glyph" aria-hidden="true">❯</span><span>cat posts/{{ .File.LogicalName }}<span class="cursor" aria-hidden="true"></span></span></div>
+        <h1>{{ .Title }}</h1>
+        <div class="meta">
+          <time datetime="{{ .Date.Format "2006-01-02" }}" data-pagefind-meta="date:{{ .Date.Format "2006-01-02" }}"><b>{{ .Date.Format "January 2, 2006" }}</b></time>
+          <span>{{ .ReadingTime }} min read</span>
+          <span>{{ lang.FormatNumber 0 .WordCount }} words</span>
+        </div>
+        {{ partial "tags.html" . }}
+      </header>
+
+      <div class="prose{{ if .Params.sectnums }} sectnums{{ end }}" id="prose" data-pagefind-body>
+        {{ .Content }}
+      </div>
+
+      <footer class="end">
+        <div class="end-rule">end of post</div>
+        <div class="author">
+          {{ partial "avatar.html" (dict "size" 64 "class" "" "alt" "" "lazy" true) }}
+          <div>
+            <div class="who">{{ site.Params.author.name }}</div>
+            <div class="bio">{{ site.Params.author.bio }}</div>
+          </div>
+        </div>
+        <nav class="prevnext" aria-label="More posts">
+          {{- with .PrevInSection }}
+          <a class="pn" href="{{ .RelPermalink }}"><span class="dir">← older</span><span class="ttl">{{ .Title }}</span></a>
+          {{- else }}
+          <span class="pn empty">this is the first post</span>
+          {{- end }}
+          {{- with .NextInSection }}
+          <a class="pn next" href="{{ .RelPermalink }}"><span class="dir">newer →</span><span class="ttl">{{ .Title }}</span></a>
+          {{- else }}
+          <span class="pn empty">this is the latest post</span>
+          {{- end }}
+        </nav>
+        {{ partial "comments.html" . }}
+      </footer>
+    </article>
+    <aside class="toc" id="tocPane" aria-label="Contents">{{ partial "toc.html" . }}</aside>
+  </div>
+</main>
+<div class="sheet" id="sheet" hidden><div class="wrap toc" id="sheetInner">{{ partial "toc.html" . }}</div></div>
+{{ end }}

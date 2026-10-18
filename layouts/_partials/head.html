@@ -1,0 +1,30 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+{{- $desc := .Description | default site.Params.description }}
+<title>{{ if .IsHome }}{{ site.Title }}{{ else }}{{ .Title }} | {{ site.Title }}{{ end }}</title>
+<meta name="description" content="{{ $desc }}">
+<link rel="canonical" href="{{ .Permalink }}">
+<meta name="author" content="{{ site.Params.author.name }}">
+{{- /* Open Graph and schema.org tags come from Hugo's built-in templates. The preview image is params.images in hugo.toml. */}}
+{{ partial "opengraph.html" . }}
+{{ partial "schema.html" . }}
+{{- if .IsPage }}
+<meta property="article:author" content="{{ site.Params.author.name }}">
+{{- end }}
+{{- /* the small square card, until there is a wide preview image; X reads the title, description and image from the Open Graph tags */}}
+<meta name="twitter:card" content="summary">
+{{- with site.Home.OutputFormats.Get "atom" }}
+<link rel="alternate" type="application/atom+xml" href="{{ .Permalink }}" title="{{ site.Title }}">
+{{- end }}
+<meta name="color-scheme" content="light dark">
+{{- /* the commit the site was built from, set by CI: the smoke test waits for it to know the new version is live */}}
+{{- with and .IsHome (getenv "HUGO_BUILD_COMMIT") }}
+<meta name="build-commit" content="{{ . }}">
+{{- end }}
+<script>try{var t=localStorage.getItem("theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}</script>
+<link rel="preload" href="/fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/geist-mono-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+{{- $css := resources.Get "css/main.css" | minify | fingerprint }}
+<link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+{{ if hugo.IsProduction }}{{ partial "google_analytics.html" . }}{{ end }}
