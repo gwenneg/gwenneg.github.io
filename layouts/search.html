@@ -1,0 +1,14 @@
+{{ define "main" }}
+<main class="wrap" id="main">
+  <div class="home-main search">
+    <h1 class="visually-hidden">Search the posts</h1>
+    <form class="prompt search-prompt" role="search" action="/search/">
+      <span class="glyph" aria-hidden="true">❯</span>
+      <span aria-hidden="true">grep -ril "</span><input id="searchInput" name="q" type="search" autocomplete="off" spellcheck="false" aria-label="Search the posts" aria-describedby="searchStatus"><span aria-hidden="true">" posts/</span>
+    </form>
+    <p class="search-status" id="searchStatus" role="status"></p>
+    <ol class="rows dated" id="searchResults"></ol>
+    <noscript><p class="search-status">Search needs JavaScript.</p></noscript>
+  </div>
+</main>
+{{ end }}

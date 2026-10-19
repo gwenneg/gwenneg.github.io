@@ -1,0 +1,239 @@
+---
+title: "Turn an AI you can’t trust into one you can"
+description: "You can’t unit-test an AI. Notes from a month of building evals instead."
+tags: [ai, claude code, evals, llm, testing]
+---
+
+> [!NOTE]
+> This post was written with the help of AI.
+
+I maintain [AI Mentor](https://gwenneg.com/2026/07/13/which-80-percent-of-claude-code-are-you-missing.html), a Claude Code plugin that teaches developers the AI capabilities they don't know exist.
+For that to work, every recommendation has to be trustworthy: verified against a curated catalog, never invented.
+That claim needed proof, so I built evals: automated tests that run the plugin like a real user would and check its answers for recommendations it shouldn't be making.
+It took me a month to make them trustworthy, because the evals turned out to give wrong verdicts too.
+
+After three weeks, most of what I had built needed rebuilding around something I hadn't seen coming.
+If you're building evals for an AI-powered product, or still deciding whether to, these are the traps I fell into.
+
+> [!NOTE]
+> No prior evals knowledge is needed to understand this post.
+> If you've ever written a unit test, most of this will feel familiar.
+> The parts that won't are the lessons.
+
+> [!TIP]
+> In a hurry? Jump to the [If you are starting from scratch](#starting-from-scratch) section for a TL;DR of this post.
+
+## What is an eval, and why bother?
+
+A unit test can assert an exact outcome because the code under test is deterministic: the same input produces the same behavior.
+An LLM is not deterministic.
+Run it twice on the same input and you may get different words, sometimes different decisions.
+You can't assert equality on that, so an eval asks questions about the AI's answer instead: "Is this claim accurate?", "Did it violate a stated rule?".
+
+Evals started in research labs, as benchmarks for comparing models (Stanford's [HELM](https://crfm.stanford.edu/helm/) is a good example).
+The name caught on in 2023, when OpenAI open-sourced its [Evals framework](https://github.com/openai/evals).
+This post follows that framework's core idea: write your own evals for your own use case.
+
+Any eval suite needs cases and a grader, and, if your product carries state, an environment to run them in.
+Mine started simple:
+
+- Around 40 test cases, each one about a realistic user request like `my long session keeps getting dumber`
+- A small fixture project to run them in: a sample repo standing in for a real one
+- A second AI, the judge, that reads each answer and decides pass or fail against written expectations
+
+The cases come from your product's promises: write one for each rule it must follow and each kind of request it must handle.
+
+My plan was just as simple: write the cases, let the judge grade the answers, fix the plugin until everything went green, then make that green a gate no release could skip.
+This plan looked solid until the judge started grading.
+
+## Lesson 1: the hard part of your evals is yours to write
+
+I wrote the first version of the suite in Go, like every other tool in the repo.
+It worked, but I didn't like owning an eval harness, the code that runs the suite, when so many already exist.
+So I gave [Promptfoo](https://www.promptfoo.dev/), one of the most popular eval frameworks, a real chance and ported the suite to it a few different ways.
+All of them worked, but none beat the plain Go runner they were meant to replace.
+
+Frameworks offer real machinery: assertions, built-in AI graders, and test matrices.
+But the hard part of my suite, about 450 lines, was _state_: seeding a user profile on disk before each case (the plugin keeps one to remember what each developer already knows), isolating each run in its own throwaway home directory so runs can't see each other's files, handing the judge the exact catalog files to check answers against.
+Every port kept all of that code and simply moved it into the framework's hooks.
+All Promptfoo could take off my hands was the loop that runs each case and collects results, a few dozen lines of Go, at the price of a second toolchain and a config layer.
+
+**Before adopting an eval framework, count the lines it would actually save you.**
+If your product is stateless, prompt in and text out, a framework will save you real time.
+Agent-focused harnesses like the UK AI Security Institute's [Inspect](https://inspect.aisi.org.uk/) even host the isolated test environments for you.
+But no framework knows your product's rules, so the fixtures, the facts the judge grades against, and the checks are still yours to write.
+
+## Lesson 2: don't let the judge grade from memory
+
+One of the first bugs my evals caught was in the judge, not the plugin.
+
+The plugin taught a real, documented Claude Code feature that shipped recently.
+The judge flagged it as fabricated.
+The judge's training data was older than the feature, so it was grading 2026 answers with frozen knowledge, confidently calling the truth an invention.
+
+That turned into a rule the suite still enforces: **the judge only fails an answer based on facts it was handed, never on facts it remembers.**
+Handed means literally pasted into the judge's prompt: the list of plugins that exist, the documentation behind each capability, and the files in the fixture project.
+An instruction like "you know what Claude Code supports" is a mistake, because the judge's knowledge is frozen at training time.
+Same goes for any fact your judge couldn't have learned in training: your internal rules, your data, whatever shipped last month.
+
+Stale knowledge doesn't only hide in the judge's training.
+One of my tests described, in prose, what one of the plugin's data files should contain.
+That file changes weekly by design, and the test failed three correct plugin answers in a row.
+Prose descriptions go stale the moment the file changes, so now the judge gets the file itself instead of my description of it.
+
+## Lesson 3: measure your judge before trusting it
+
+Handing the judge files fixed what it knew.
+It did nothing for how it reasoned.
+
+It took me weeks to check the judge itself, because **a broken judge doesn't look broken.**
+Its wrong verdicts look like product failures, so every red result sent me to fix the plugin instead of questioning the grader.
+Eventually I blind-labeled a sample of the judge's verdicts: reviewer agents read each answer and formed their own verdict before seeing the judge's, and I settled the disagreements myself.
+I used AI to audit the AI.
+The [textbook version](https://arxiv.org/pdf/2306.05685) has a human label everything.
+Letting AI reviewers do the first pass is what made it a couple hours of my time instead of a day.
+Measuring and correcting a judge this way is called calibrating it.
+
+The judge turned out to be right 75 percent of the time, meaning one verdict in four was wrong.
+
+My own spec, the written rules for how the plugin must answer, required every recommendation to carry a "do it now" offer, and the judge failed answers for containing exactly that offer.
+It passed an answer that skipped a required warning label, because a similar-looking phrase nearby fooled it.
+And it excused some failures by citing exceptions that nobody had written anywhere.
+Every error came from one sentence in the judge's instructions or one ambiguous sentence in my spec, and every fix was one sentence long.
+
+False greens, answers that broke the rules but passed anyway, were the expensive kind.
+A wrong failure gets investigated.
+A false green stays quiet: nobody checks a passing test, so the bug survives.
+The couple hours I spent calibrating earned more trust in the suite than anything else in the project, and I did it two weeks late.
+Two days after the one-sentence fixes, the same blind check hit 100 percent on a fresh sample of 24 verdicts.
+
+## Lesson 4: your test environment misleads you too
+
+The judge had misled me more than once by then, so I got suspicious of the one component I had never questioned: the fixture project, the sample codebase Claude had generated at the start.
+That suspicion was justified.
+
+The fixture's own docs claimed it was a web service built with [Express](https://expressjs.com/), a popular Node.js framework.
+It had no routes and no server, and the Express dependency sat unused.
+One test asked the plugin to document "our orders endpoints", endpoints that didn't exist.
+One earlier failure I'd blamed on the plugin was actually the plugin correctly catching the fixture's false claim, and getting punished for it.
+Better yet, Claude had left a comment in the fixture's source code: "eval cases need real paths to ground against".
+In plain words: a note that this codebase exists to be tested.
+Every test run, the plugin under test could read that it was inside a test.
+That matters more than it sounds: [models often detect when they are being evaluated](https://arxiv.org/pdf/2505.23836), and may behave differently when they do.
+The fix is two cheap checks.
+**Verify every claim the fixture makes about itself against its own files, and search it for anything that admits it's a test.**
+
+By that point the judge had invented exceptions, my spec had proven ambiguous, and the fixture had lied about what it was.
+All three failures shared the same shape: something that sounded right until it was checked.
+
+## The discovery that changed my strategy
+
+Around week four I got tired of iterating: twenty-ish pull requests, each fixing one eval failure, and some introducing regressions.
+I told Claude there has to be a better approach.
+
+The audit that followed found what I should have seen earlier.
+Most failures lived in one layer: the judge interpreting prose.
+A few checks skipped the judge entirely, plain code like greps and file comparisons, and they'd never produced a wrong verdict.
+
+That's when I realized **I didn't need to make the judge better, I needed to rely on it less.**
+
+So I gave the plugin a receipt to append to its answers: one HTML comment, a machine-readable summary of what it just did.
+
+```
+<!-- mentor mode=problem goal=debugging move=autonomous-loops surprise=hooks-as-workflow -->
+```
+
+Users never see it: the plugin only emits the receipt when an environment variable enables it, and only the eval runner sets that variable.
+The fields are the plugin's own vocabulary: the mode it ran in, the goal it classified, the move it recommended, and the surprise, a bonus capability it taught along the way.
+The eval runner reads it, and suddenly the hard questions become string comparisons.
+Did it classify correctly?
+Just check if the goal equals "debugging".
+Did it re-offer the capability the user declined?
+Just grep for it.
+Same verdict every time.
+
+> [!IMPORTANT]
+> This works because the plugin's decisions come from a fixed menu of goals and moves.
+> The receipt only works if your product's answers fit a short vocabulary.
+
+The judge didn't disappear.
+A few cases genuinely need judgment, like the fabrication trap: ask for a feature that doesn't exist and check that the plugin says so instead of playing along.
+Everywhere else, the judge now answers exactly one question: does the answer match its receipt?
+That one still needs a judge, because a model could write a receipt claiming one thing while the answer does another, and only a reader can catch the mismatch.
+But one question is a far easier job than before, when my written expectations asked the judge to verify over a dozen separate things per answer.
+A calibrated judge scores well, but only for a moment.
+New cases can reintroduce the old biases, and I would have to keep re-checking it forever.
+A string comparison never needs calibrating.
+
+> [!WARNING]
+> Adding the receipt changes the model you're measuring.
+> This is a documented pattern: [format requirements measurably degrade model output](https://arxiv.org/pdf/2408.02442).
+> I A/B tested the same cases with and without the receipt, and saw no effect at first.
+> Then my busiest test case, the one whose answers already carried the most work, started failing more often: producing the receipt cost the model effort exactly where it had none to spare.
+> Shrinking the receipt from five fields to the four you saw above recovered most of the loss.
+> So run this comparison on your most loaded case, not an easy one.
+
+## Lesson 5: your rules can fight each other
+
+One rule in my plugin says: never mention a capability the user has declined.
+One test checks it.
+The gate runs every case three times per release, because a single run can pass by luck, and this test kept failing for two weeks, at first roughly one run in three.
+
+Six fixes lowered the failure rate, but none reached zero.
+The model kept finding new sentences for the same leak, and at one point the investigation revealed why: another of my own rules was demanding the model justify its choice, and the only honest justification named the declined capability.
+
+**When a model keeps violating an instruction in creative new ways, look for the second instruction rewarding it.**
+
+## Lesson 6: not every failure can reach zero
+
+The last lesson is the one I resisted longest.
+
+Even after resolving the rules conflict, a residual failure rate remained: about 15 to 20 percent, stable, measured across dozens of individual runs.
+What should a release gate do with a test like that, when no prompt engineering can remove the failures?
+
+Failing every release would be honest but useless.
+It would block a third or more of releases without surfacing anything new.
+Retrying until green would be worse than no test at all, because a green earned by retries just means I got lucky.
+So I split tests into two kinds:
+
+| Kind | Example | Gate policy |
+|---|---|---|
+| Promises | never invent a feature, never corrupt the user's data | Must pass every single run. One failure blocks the release. |
+| Rates | wording rules, like never naming a capability the user declined | Compared with the same test's own recent failure rate. The gate goes red only when the rate _worsens_. |
+{cols="1,2,2"}
+
+I made the suite compute each flaky check's baseline from the last five runs and ask a boring statistical question: is today's failure count surprising, given the known rate?
+The idea is anything but new: Google was already [treating its known-flaky tests this way](https://testing.googleblog.com/2016/05/flaky-tests-at-google-and-how-we.html) back in 2016.
+Bad luck within the rate still passes, with a printed warning saying so.
+A genuine regression stays red.
+The test that blocked two releases became a monitored number that has not caused a crisis since.
+
+## If you are starting from scratch {#starting-from-scratch}
+
+Eight things I'd tell myself a month ago:
+
+1. Before adopting an eval framework, count the lines it would actually save you. State is the hard part, and fixtures and rules are yours to write either way.
+1. Hand the judge files, never facts from memory. The judge's memory is frozen at training time, and yours goes stale the moment the thing you described changes, like a prose description of a file that changes weekly.
+1. Start with 10 cases and a judge, but calibrate the judge in week one. Blind-label a sample of verdicts. The result will surprise you, and every disagreement is a one-sentence fix.
+1. Move every check you can into plain code. Counting, greps, file diffs. If your product's answers fit a short vocabulary, ask the model to emit a structured receipt instead, enabled by an environment variable only your eval runner sets. Reserve the judge for questions that need judgment.
+1. When a model repeatedly breaks a rule, audit your other rules first. The contradiction may be yours.
+1. Log every run to a file you keep. Per-case history is how you tell a flaky test from a stable 15 percent failure rate wearing a flaky costume. Without it, you can't tell the difference.
+1. Decide which tests are promises and which are rates, and give them different gates. One policy for both will either block good releases or let real failures slip through.
+1. Make every eval-fix PR prove its fix in the PR. Run the target case several times before merging. Without that, "the diff looks right" quietly becomes "fixed".
+
+## Dig deeper
+
+- [Anthropic's guide to building evals](https://platform.claude.com/docs/en/test-and-evaluate/develop-tests) covers eval design and grading options, including code-based and model-based grading.
+- Hamel Husain's [Your AI Product Needs Evals](https://hamel.dev/blog/posts/evals/) is the best practitioner introduction I know, and his follow-up on [LLM-as-judge](https://hamel.dev/blog/posts/llm-judge/) walks through judge calibration with a domain expert, the technique that caught my broken judge.
+- The evals section of Eugene Yan's [Patterns for Building LLM-based Systems & Products](https://eugeneyan.com/writing/llm-patterns/#evals-to-measure-performance) surveys eval patterns and their tradeoffs.
+- The [CheckList paper](https://arxiv.org/pdf/2005.04118) (Ribeiro et al.) inspired how I picked cases: cover each capability and each rule systematically instead of adding cases as they occur to you.
+- [τ-bench](https://arxiv.org/pdf/2406.12045) introduced `pass^k`, the "must pass every run" metric this post calls promises, and shows how badly single-run pass rates overstate agent reliability.
+- [Adding Error Bars to Evals](https://arxiv.org/pdf/2411.00640) argues that eval numbers should come with uncertainty estimates, the statistics behind treating failures as rates.
+- [Inspect](https://inspect.aisi.org.uk/) natively supports repeated runs per case and rules for combining their verdicts, if you want rates without building them yourself.
+
+I'm one month into evals, and still learning.
+It took me most of that month to stop fixing failures that don't matter.
+I worked through all of it with Claude Fable 5, and we checked every claim in this post against the suite's code and run logs.
+The whole suite is [open source](https://github.com/gwenneg/ai-mentor) if you want to see any of it for real.
+
+If you've built evals for your own product, or you're about to, I'm curious how it compares: share your experience, tips, or corrections in the comments.

@@ -1,0 +1,212 @@
+---
+title: The docs your AI agent is missing
+description: "A Claude Code skill that builds the context docs your AI agent needs, backed by research on how LLMs process context."
+tags: [agents.md, ai, claude code, context engineering, developer experience, documentation]
+---
+
+> [!NOTE]
+> This post was written with the help of AI.
+
+In LangChain's [2026 survey of 1,300 AI professionals](https://www.langchain.com/state-of-agent-engineering), large enterprises cited context engineering and managing context at scale as one of their biggest challenges in ensuring agent quality.
+The term "context engineering" is barely a year old, and most organizations are still figuring it out.
+
+The challenge is no longer whether AI can write code.
+It's whether it knows enough about _your_ project to write the right code.
+And even when teams invest in writing context docs, keeping them accurate is its own problem.
+A [study of 10,000 open-source repositories](https://arxiv.org/pdf/2510.21413) found that half of the `AGENTS.md` files it identified were never modified after creation.
+
+I've been experimenting with this at Red Hat, trying different ways to structure and maintain context docs for AI agents.
+In this post, I'll walk through [a Claude Code skill](https://github.com/gwenneg/blog-ai-friction-loop/blob/main/skills/init-context-docs/SKILL.md) I built to help bootstrap the documentation agents need to work effectively on a project.
+Here's a before/after on a real project:
+
+![Before/after comparison](/assets/images/posts/the-docs-your-ai-agent-is-missing/before-after.png)
+{width="90%"}
+
+> [!NOTE]
+> An agent can get context from many sources: static files loaded at startup, dynamic retrieval (RAG), memory systems and more.
+> This post only covers the first: repo-level documentation that describes conventions, pitfalls, architectural decisions and other project knowledge not visible in the code.
+
+## Initiating context docs with a Claude skill
+
+The `/init-context-docs` skill assesses a repository's readiness for AI-assisted development, then bootstraps a layered set of context files.
+While `AGENTS.md` and the guideline files work with any tool that supports the standard, the loading behaviors described here are specific to Claude Code:
+
+| File | Role | Loading behavior |
+|---|---|---|
+| `docs/*-guidelines.md` | Domain-specific guidelines (e.g., security, testing, database). Capped at 200 lines. | At Claude's discretion via `AGENTS.md` index |
+| `AGENTS.md` | Cross-cutting conventions and index to guideline files. Agent-agnostic. Capped at 200 lines. | At Claude's discretion by default; unconditional when imported via `@AGENTS.md` in `CLAUDE.md` |
+| `.claude/rules/*.md` | Path-scoped loaders that force a guideline into context for matching files. | Path-scoped deterministic load |
+| `CLAUDE.md` | Thin Claude Code-specific layer. Imports `AGENTS.md` via `@AGENTS.md`. Capped at 100 lines. | Unconditional load (every session) |
+| `README.md` | High-level project context for humans and agents alike. | At Claude's discretion |
+{cols="1,2,1"}
+
+![Context docs loading layers](/assets/images/posts/the-docs-your-ai-agent-is-missing/context-docs-loading-layers.svg "Context docs loading layers")
+{width="85%"}
+
+The unconditional layer is the most expensive in terms of context window tokens: it's loaded every session regardless of the task.
+Files loaded at Claude's discretion are the cheapest, but come with no guarantee.
+Path-scoped rules sit in between: deterministic loading, but only for matching files.
+
+## Why size and ordering matter
+
+Several studies point in the same direction: longer context alone hurts LLM performance, even when the content is relevant ([Du et al., 2025](https://arxiv.org/pdf/2510.05381)).
+Models pay the most attention to the beginning and end of their input; everything in the middle gets less ([Liu et al., 2024](https://arxiv.org/pdf/2307.03172); [Wu et al., 2025](https://arxiv.org/pdf/2502.01951)).
+Anthropic frames context as ["a precious, finite resource"](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents).
+On the flip side, well-formed `AGENTS.md` files are associated with ~29% faster execution ([Lulla et al., 2026](https://arxiv.org/pdf/2601.20404)).
+But more isn't better: LLM-generated context files with unnecessary content actually reduce task success rates compared to no context at all ([Gloaguen et al., 2026](https://arxiv.org/pdf/2602.11988)).
+
+This is why every file in the system is capped (200 lines for guidelines and `AGENTS.md`, 100 for `CLAUDE.md`), the most critical rules go first, verification commands go last, and everything in between is kept ruthlessly short.
+
+## Why each layer matters
+
+Every layer is a tradeoff between loading guarantee and token cost. The question for each file is: does the agent need this every session, only for certain files, or only sometimes?
+
+### Guidelines
+
+This is the deepest layer: concrete rules about how _this_ codebase does things (e.g., "use `middleware/validator.ts` for input validation"), not general best practices (e.g., "always validate user input").
+Each guideline targets a specific domain (e.g., security, testing, database), determined dynamically based on what the skill finds in the repo.
+
+Anthropic calls self-verification ["the single highest-leverage thing you can do"](https://code.claude.com/docs/en/best-practices#give-claude-a-way-to-verify-its-work), so every guideline ends with a Verification section listing commands the agent can run to check its own work.
+
+### AGENTS.md {#agents-md}
+
+[AGENTS.md](https://agents.md/) is an open standard stewarded by the Linux Foundation, supported by all major AI coding tools and adopted by 60K+ open-source projects.
+It serves as the agent-agnostic onboarding doc: cross-cutting conventions plus an index pointing to the detailed guidelines.
+
+Claude uses this index to decide which guidelines to load based on the current task.
+This is a judgment call by the agent, not a guaranteed mechanism.
+In practice, Claude sometimes skips a guideline it should have loaded, especially when the relevance isn't obvious from the file names alone.
+Path-scoped rules (covered below) exist to address that.
+
+### Path-scoped rules
+
+`.claude/rules/*.md` files let you force a guideline into context only when Claude works with matching files.
+This addresses the gap mentioned above: when Claude's own judgment about which guidelines to load isn't reliable enough, a rule makes the loading deterministic.
+
+```markdown {title=".claude/rules/testing.md"}
+paths:
+  - "**/test/**"
+
+@docs/testing-guidelines.md
+```
+
+The benefit is precision: a guideline only consumes tokens when the agent actually needs it.
+
+But use rules sparingly.
+Broad globs like `**/*` make a guideline effectively always-loaded. Multiple rules can stack up on the same file.
+Patterns can go stale if the codebase restructures.
+And rules are Claude Code-specific; other tools don't support them.
+
+> [!WARNING]
+> If `.claude/rules/` is gitignored, rules won't be committed and other developers won't benefit from them.
+> Make sure the rules directory is explicitly allowed in your `.gitignore`.
+> The skill checks for this and offers to add an exception.
+
+### CLAUDE.md {#claude-md}
+
+This is the thinnest layer: only what applies exclusively to Claude Code.
+It's loaded unconditionally at the start of every session, so every line consumes context window tokens regardless of the task.
+Anthropic's guidance is blunt: ["Bloated CLAUDE.md files cause Claude to ignore your actual instructions!"](https://code.claude.com/docs/en/best-practices#write-an-effective-claude-md)
+
+Adding `@AGENTS.md` near the top guarantees Claude always has the agent guidance available.
+Without it, Claude may or may not read `AGENTS.md` on its own. Loading is not guaranteed.
+The tradeoff: the import makes loading deterministic, at the cost of consuming `AGENTS.md` tokens unconditionally every session.
+
+> [!WARNING]
+> Avoid importing guideline files directly from `CLAUDE.md`.
+> That would make them always-loaded, defeating the on-demand architecture the rest of the system is built around.
+
+### README
+
+A well-structured README can answer "what does this project do and how do I build it?" without the agent exploring dozens of files.
+The skill generates one that front-loads the essentials (project purpose, tech stack, build instructions) and links to `AGENTS.md` and `docs/` for the deeper layers.
+
+## How the skill works
+
+![Skill execution flow](/assets/images/posts/the-docs-your-ai-agent-is-missing/skill-execution-flow.svg "Skill execution flow")
+{width="85%"}
+
+> [!NOTE]
+> At each phase, the skill asks whether to proceed, lets you skip layers, and offers customization before generating anything.
+
+The skill starts by scanning the repo against the five layers described above and presents a baseline status showing what already exists and what's missing.
+It then matches the repo against a curated list of guideline domains (e.g., security, testing, database), drops any that aren't relevant, identifies additional domains not on the list (e.g., GraphQL, machine learning), and lets you adjust the final selection.
+
+Once the domains selection is final, the skill launches one generation agent per domain, each focused exclusively on its area.
+An agent that only needs to produce a testing guideline can dig deep into your test patterns, rather than spreading its attention across the entire project.
+The same pattern applies to `AGENTS.md`, `CLAUDE.md`, and `README`: each gets its own generation agent.
+If a file already exists, the generation agent reads the existing content first and incorporates it, updating with new findings while preserving what's still accurate.
+
+Each generation agent reads a [quality checklist](https://github.com/gwenneg/blog-ai-friction-loop/tree/main/skills/init-context-docs/checklists) before writing anything.
+The checklists enforce constraints like the 200-line cap, the necessity test ("Would removing this cause an agent to make a mistake?"), a ban on absolute language without evidence, and the requirement that every file reference actually exists in the codebase.
+Generation and verification agents share the same checklists, so both are measured against the same standard.
+
+A separate agent handles verification. The one that wrote the content is biased toward believing it's correct: research shows that [LLMs systematically favor their own output](https://arxiv.org/pdf/2404.13076) (Panickssery et al., 2024) and [fail to correct their own errors](https://arxiv.org/pdf/2507.02778) while successfully correcting identical ones from external sources (Tsui, 2025).
+There's a catch, though: both studies examine self-bias within a single model.
+The skill uses a different model for verification (Sonnet instead of Opus), but both belong to the same Claude family, so some bias may carry over.
+Still, a fresh agent with a clean context checks file references against the actual codebase, validates factual claims with `WebSearch`, looks for contradictions across files, and flags duplication across layers.
+It only corrects inaccuracies.
+It doesn't add new content.
+
+After all agents finish, an [`automated-checks.sh`](https://github.com/gwenneg/blog-ai-friction-loop/blob/main/skills/init-context-docs/scripts/automated-checks.sh) script validates the generated files (line counts, imports, docs index, secret detection) and re-runs until all checks pass.
+
+The skill finally offers to create a pull request with all the changes, so the generated docs go through the team's normal review process.
+
+## Try it yourself
+
+Want to see how this works on your own project? Clone the [gwenneg/blog-ai-friction-loop](https://github.com/gwenneg/blog-ai-friction-loop) repository, then start Claude Code with the plugin from your target project:
+
+```bash
+git clone https://github.com/gwenneg/blog-ai-friction-loop.git
+cd /path/to/your-project
+claude --plugin-dir /path/to/blog-ai-friction-loop
+```
+
+Then type `/init-context-docs`.
+The skill will walk you through each layer, ask what to include, and let you skip anything that doesn't apply.
+Expect it to take anywhere from a few minutes to about half an hour depending on the size of your codebase.
+
+## What's next
+
+In my own testing, the generated docs clearly improved how agents work with projects: fewer wrong assumptions, less time spent correcting output.
+I don't have metrics to back that up yet.
+It's based on what I observed across a handful of repositories.
+
+But even after all of this, the output is imperfect.
+Guidelines can sound plausible while being wrong about specifics, and some conventions only reveal themselves when the agent actually tries to follow the docs.
+
+These are _friction events_, moments where the docs failed the agent:
+
+- The user corrected the agent's output
+- The agent asked a question the docs should have answered
+- The agent made a wrong assumption about the codebase
+- A tool call was denied because it violated a project policy the agent didn't know about
+
+Each one is a signal that the docs have a gap, something a concrete rule or example could have prevented.
+
+In a [follow-up post](/2026/05/31/turn-ai-friction-into-better-docs.html), I introduce an experiment to capture these friction events automatically at the end of every session and turn them into targeted doc improvements.
+
+If you try `/init-context-docs` on your own codebase, I'm curious what it gets right, what it misses, and what you end up changing.
+Feel free to share your experience in the comments.
+
+## Sources
+
+| Source | Author | Date |
+|---|---|---|
+| [Evaluating AGENTS.md: Are Repository-Level Context Files Helpful for Coding Agents?](https://arxiv.org/pdf/2602.11988) | Gloaguen et al. (ETH Zurich) | Feb 2026 |
+| [On the Impact of AGENTS.md Files on the Efficiency of AI Coding Agents](https://arxiv.org/pdf/2601.20404) | Lulla et al. | Jan 2026 |
+| [State of Agent Engineering](https://www.langchain.com/state-of-agent-engineering) | LangChain | Early 2026 |
+| [Context Engineering for AI Agents in Open-Source Software](https://arxiv.org/pdf/2510.21413) (peer-reviewed, MSR 2026) | Mohsenimofidi et al. | Oct 2025 |
+| [Context Length Alone Hurts LLM Performance Despite Perfect Retrieval](https://arxiv.org/pdf/2510.05381) (peer-reviewed, EMNLP Findings 2025) | Du et al. | Oct 2025 |
+| [Effective Context Engineering for AI Agents](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) | Anthropic | Sep 2025 |
+| [AGENTS.md open standard](https://agents.md/) | Linux Foundation | Aug 2025 |
+| [Self-Correction Bench: Uncovering and Addressing the Self-Correction Blind Spot in Large Language Models](https://arxiv.org/pdf/2507.02778) | Tsui | Jul 2025 |
+| [Best practices for Claude Code](https://code.claude.com/docs/en/best-practices) | Anthropic | May 2025 (updated regularly) |
+| [On the Emergence of Position Bias in Transformers](https://arxiv.org/pdf/2502.01951) (peer-reviewed, ICML 2025) | Wu et al. (MIT) | Feb 2025 |
+| [LLM Evaluators Recognize and Favor Their Own Generations](https://arxiv.org/pdf/2404.13076) (peer-reviewed, NeurIPS 2024) | Panickssery et al. | Apr 2024 |
+| [Lost in the Middle: How Language Models Use Long Contexts](https://arxiv.org/pdf/2307.03172) (peer-reviewed, TACL 2024) | Liu et al. (Stanford) | Feb 2024 |
+{cols="3,1,1"}
+
+## Special thanks
+
+Thanks to Jiří Bönsch for helping me test and improve the `/init-context-docs` skill.

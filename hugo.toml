@@ -1,0 +1,84 @@
+baseURL = "https://gwenneg.com/"
+locale = "en-US"
+title = "Gwenneg’s blog"
+timeZone = "Europe/Paris"
+disableKinds = ["section"]
+# Tag names stay as written in the posts, all lowercase, instead of Hugo's default title case ("Ai", "Agents.md").
+capitalizeListTitles = false
+# The license of the posts lives next to them, but is not part of the site.
+ignoreFiles = ['LICENSE$']
+
+[services.googleAnalytics]
+  ID = "G-YVR9PWYP1T"
+
+# Visitors whose browser sends "Do Not Track" are not counted.
+[privacy.googleAnalytics]
+  respectDoNotTrack = true
+
+[params]
+  # The link preview image, read by Hugo's built-in Open Graph template.
+  images = ["assets/images/og_image.png"]
+  # Feed ids were created when the blog lived at gwenneg.github.io. They must never change,
+  # or feed readers show every post as new.
+  feedIDBase = "https://gwenneg.github.io/"
+  repo = "https://github.com/gwenneg/gwenneg.github.io"
+  description = "Practical lessons from what I build and learn as a software engineer, with a strong focus on AI these days."
+  [params.author]
+    name = "Gwenneg Lepage"
+    bio = "Principal Software Engineer at Red Hat"
+    intro = "Principal Software Engineer at Red Hat"
+    github = "https://github.com/gwenneg"
+    linkedin = "https://www.linkedin.com/in/gwenneg/"
+  [params.giscus]
+    repo = "gwenneg/gwenneg.github.io"
+    repoID = "R_kgDOL32gyQ"
+    category = "Blog posts"
+    categoryID = "DIC_kwDOL32gyc4ChLma"
+
+# Post files are named YYYY-MM-DD-slug.md: the date and the slug come from the file name.
+[frontmatter]
+  date = [":filename", ":default"]
+
+[permalinks.page]
+  posts = "/:year/:month/:day/:slug"
+
+[uglyURLs]
+  posts = true
+
+[taxonomies]
+  tag = "tags"
+
+[outputs]
+  home = ["html", "atom"]
+  page = ["html"]
+  taxonomy = ["html"]
+  term = ["html"]
+
+[mediaTypes."application/atom+xml"]
+  suffixes = ["xml"]
+
+[outputFormats.atom]
+  mediaType = "application/atom+xml"
+  baseName = "feed"
+  noUgly = true
+  rel = "alternate"
+
+[markup.goldmark.parser]
+  wrapStandAloneImageWithinParagraph = false
+  [markup.goldmark.parser.attribute]
+    block = true
+
+# Keep straight double quotes and literal dashes; apostrophes and ellipses stay typographic.
+[markup.goldmark.extensions.typographer]
+  leftDoubleQuote = "&quot;"
+  rightDoubleQuote = "&quot;"
+  enDash = "--"
+  emDash = "---"
+
+# The feed carries code blocks inside escaped HTML: minifying XML would collapse their indentation.
+[minify]
+  disableXML = true
+
+[markup.highlight]
+  noClasses = false
+  guessSyntax = false

@@ -1,0 +1,8 @@
+{
+  "name": "blog-build",
+  "private": true,
+  "description": "Pagefind, installed in the build image by the Dockerfile next to this file. Dependabot keeps the version and the lockfile up to date.",
+  "dependencies": {
+    "pagefind": "1.5.2"
+  }
+}

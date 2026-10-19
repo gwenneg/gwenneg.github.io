@@ -1,0 +1,25 @@
+{{- /*
+  The contents of a post: its level-2 sections, numbered, built by Hugo from the headings.
+  assets/js/site.js highlights the current section and fills the progress meter.
+*/ -}}
+{{- $sections := partial "toc-sections.html" .Fragments.Headings -}}
+{{- with $sections }}
+<div class="toc-h">contents</div>
+<ol>
+  {{- range $i, $h := . }}
+  <li><a href="#{{ $h.ID }}" data-i="{{ $i }}"><span class="i">{{ printf "%02d" (add $i 1) }}</span><span>{{ $h.Title | plainify | htmlUnescape }}</span></a></li>
+  {{- end }}
+</ol>
+<div class="toc-meter"><span class="bar"><span class="fill"></span></span><span class="pct">0%</span></div>
+<div class="toc-hint"><kbd>t</kbd> hide  <kbd>←</kbd> <kbd>→</kbd> section</div>
+{{- end }}
+
+{{- define "_partials/toc-sections.html" -}}
+{{- /* the level-2 headings, in page order, wherever they sit in the heading tree */ -}}
+{{- $out := slice -}}
+{{- range . -}}
+  {{- if eq .Level 2 }}{{ $out = $out | append . }}{{ end -}}
+  {{- with .Headings }}{{ $out = $out | append (partial "toc-sections.html" .) }}{{ end -}}
+{{- end -}}
+{{- return $out -}}
+{{- end -}}

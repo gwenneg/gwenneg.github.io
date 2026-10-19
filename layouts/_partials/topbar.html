@@ -1,0 +1,25 @@
+{{- $isPost := and .IsPage (eq .Section "posts") -}}
+<header class="topbar">
+  <div class="wrap">
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <a class="home" href="/"><span class="glyph" aria-hidden="true">❯</span>gwenneg</a>
+      {{- if $isPost }}
+      <span class="sep">/</span><a class="seg-link" href="/">posts</a><span class="sep">/</span><span class="leaf">{{ .Slug }}</span>
+      {{- else if eq .Kind "taxonomy" }}
+      <span class="sep">/</span><span class="leaf">tags</span>
+      {{- else if eq .Kind "term" }}
+      <span class="sep">/</span><a class="seg-link" href="/tags/">tags</a><span class="sep">/</span><span class="leaf">{{ partial "tag-label.html" .Title }}</span>
+      {{- else if .IsPage }}
+      <span class="sep">/</span><span class="leaf">{{ .File.ContentBaseName }}</span>
+      {{- else if .IsHome }}
+      <span class="sep">/</span><span class="leaf">posts</span>
+      {{- end }}
+    </nav>
+    <nav class="nav" aria-label="Main">
+      <a href="/"{{ if or .IsHome $isPost }} aria-current="page"{{ end }}>posts</a>
+      <a class="opt" href="/tags/"{{ if in (slice "taxonomy" "term") .Kind }} aria-current="page"{{ end }}>tags</a>
+      <a href="/search/"{{ if eq .Layout "search" }} aria-current="page"{{ end }}>search</a>
+      <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch color theme">◐ auto</button>
+    </nav>
+  </div>
+</header>

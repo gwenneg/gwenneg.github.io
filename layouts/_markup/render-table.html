@@ -1,0 +1,45 @@
+{{- /* Tables scroll inside their own frame on narrow screens.
+  {cols="1,3"} on the line after a table sets the relative width of each column, as AsciiDoc's cols attribute did.
+  The percentages are computed like Asciidoctor: rounded to 4 decimals, the last column takes the rest. */ -}}
+{{- $widths := slice -}}
+{{- with .Attributes.cols -}}
+{{- $weights := split . "," -}}
+{{- $columns := len (index (or $.THead $.TBody) 0) -}}
+{{- if ne (len $weights) $columns -}}
+{{- errorf "%s: a table has %d columns, but its cols attribute %q has %d values" $.Page.File.Path $columns . (len $weights) -}}
+{{- end -}}
+{{- $total := 0.0 -}}
+{{- range $weights }}{{ $total = add $total (float (strings.TrimSpace .)) }}{{ end -}}
+{{- $used := 0.0 -}}
+{{- range $i, $w := $weights -}}
+{{- $pct := div (math.Round (mul (div (float (strings.TrimSpace $w)) $total) 1000000)) 10000.0 -}}
+{{- if eq (add $i 1) (len $weights) }}{{ $pct = div (math.Round (mul (sub 100.0 $used) 10000)) 10000.0 }}{{ end -}}
+{{- $used = add $used $pct -}}
+{{- $widths = $widths | append $pct -}}
+{{- end -}}
+{{- end -}}
+<div class="table-wrap">
+<table{{ range $k, $v := .Attributes }}{{ if ne $k "cols" }} {{ $k }}="{{ $v }}"{{ end }}{{ end }}>
+  {{- with $widths }}
+  <colgroup>{{ range . }}<col style="width: {{ . }}%">{{ end }}</colgroup>
+  {{- end }}
+  <thead>
+    {{- range .THead }}
+    <tr>
+      {{- range . }}
+      <th{{ with .Alignment }} style="text-align: {{ . }}"{{ end }}>{{ .Text }}</th>
+      {{- end }}
+    </tr>
+    {{- end }}
+  </thead>
+  <tbody>
+    {{- range .TBody }}
+    <tr>
+      {{- range . }}
+      <td{{ with .Alignment }} style="text-align: {{ . }}"{{ end }}>{{ .Text }}</td>
+      {{- end }}
+    </tr>
+    {{- end }}
+  </tbody>
+</table>
+</div>

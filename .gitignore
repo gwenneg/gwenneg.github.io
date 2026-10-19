@@ -1,4 +1,7 @@
 .idea/
-.jekyll-cache/
-_site/
 .DS_Store
+public/
+resources/_gen/
+.hugo_build.lock
+static/pagefind/
+.github/build/node_modules/

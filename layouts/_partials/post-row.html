@@ -1,0 +1,9 @@
+{{- $p := .page -}}
+<li class="row">
+  <time datetime="{{ $p.Date.Format "2006-01-02" }}">{{ $p.Date.Format (cond .withYear "2006-01-02" "01-02") }}</time>
+  <div>
+    <a class="t" href="{{ $p.RelPermalink }}">{{ $p.Title }}</a>
+    {{- with $p.Description }}<p>{{ . }}</p>{{ end }}
+    {{- partial "tags.html" $p }}
+  </div>
+</li>

@@ -9,13 +9,14 @@ Notes for the maintainer. Claude Code strips block HTML comments before loading 
 -->
 
 This file is the contract for every post written here with Claude.
-Read it in full before touching `_posts/`.
+Read it in full before touching `content/posts/`.
 The author leads: Claude proposes and checks, the author decides.
 
 ## The blog and its reader
 
-- Jekyll site with the minimal-mistakes remote theme. A GitHub Actions workflow builds and deploys it on every push to `main`, so a merged PR is a published post.
-- Posts are AsciiDoc files in `_posts/`, named `YYYY-MM-DD-slug.adoc`. Images live in `assets/images/posts/<slug>/`.
+- Hugo site with its own theme, in `layouts/` and `assets/`. A GitHub Actions workflow builds it, indexes it for search with Pagefind, and deploys it on every push to `main`, so a merged PR is a published post.
+- Posts are Markdown files in `content/posts/`, named `YYYY-MM-DD-slug.md`. The date and the URL come from the file name. Images live in `static/assets/images/posts/<slug>/`.
+- The README lists the Markdown features the site supports and how to run it locally.
 - Posts are experience reports: something the author experimented with, built, or adopted at work, and that is not well documented elsewhere.
 - The author leads a team shipping cloud services at Red Hat. French, fluent in English.
 - The reader is a developer outside Red Hat who may have just started with Claude Code. They must be able to follow every sentence.
@@ -73,10 +74,10 @@ When the author corrects or rejects a word, a phrasing, or a structural choice, 
 
 1. **Read** this file, the notes, the three most recent posts, and the referenced repositories. If the notes do not state the goal of the post, ask the author: what the reader must learn, and what the post must convince them of. Create the sources ledger in a scratch file and write the goal in one sentence at its top.
 2. **Angles.** Propose three angles, each with a title candidate, what the reader learns, and the persuasion goal. The author picks by number. Then list the planned sections, one line each, so the author can reorder or cut before any prose exists. If the author says to just start, skip the choice and the section list, pick the angle the notes support best, and say which one was picked.
-3. **Draft** the full post in one pass, following "The shape of a post". Fill the sources ledger: one line per factual claim with its source. Mark every claim without a source in the draft with `// TODO source`. Never drop the mark silently.
+3. **Draft** the full post in one pass, following "The shape of a post". Fill the sources ledger: one line per factual claim with its source. Mark every claim without a source in the draft with `<!-- TODO source -->`. Never drop the mark silently.
 4. **Refine** section by section, following "Working with the author". Move to the next section only when the author says so.
 5. **Images.** Propose one or two placements that break long text: the section, a filename, the alt text, and what the image should show. Diagrams are drawn by the author in Excalidraw. The `.excalidraw` source is committed next to the PNG export.
-6. **Metadata.** Three title candidates, three excerpts, and tags, following "AsciiDoc conventions".
+6. **Metadata.** Three title candidates, three excerpts, and tags, following "Markdown conventions".
 7. **Completeness check.** Compare the draft with the notes and the repositories. List what is missing. Take time on this step.
 8. **Review**, following "Checks".
 9. **Cleanup.** Remove every TODO, comment, and open question. Go through the done list in "Checks". Delete the sources ledger.
@@ -189,33 +190,35 @@ This is what the recent posts do. The angle can change it.
 - A section title says what the section answers: "Why Renovate merges the PR itself".
 - Recent posts end with a "Try it" style section, then a "What's next" section whose last line asks the reader for feedback, in plain words: "If you try MintMaker Automerge on one of your repositories, please let me know how the run went."
 
-## AsciiDoc conventions
+## Markdown conventions
 
-- Header, in this order: title line, `:imagesdir:` when the post has images, `:page-excerpt:`, `:page-tags:`, `:revdate:`. Filename date and `:revdate:` must match or the post does not appear.
-- Excerpt of at most 157 characters. The theme's `archive-single.html` applies `truncate: 160`, and that count includes the ellipsis it adds, so anything longer is cut mid-word on the post list. The excerpt must convince a reader to open the post. It can open in the first person ("I built a Claude Code plugin that..."). Count the characters with a command, never by eye, including for candidates that are not in the file yet.
-- Tags: lowercase, checked against the vocabulary of existing posts.
-- First block after the header (after the header image when there is one):
+- Front matter, between `---` lines: `title`, `description` (the excerpt), and `tags`. No `date`: it comes from the file name.
+- Curly apostrophes in `title` and `description`: `can’t`, `let’s`. The front matter is shown as written, while the post body gets curly apostrophes on its own.
+- Excerpt of at most 157 characters. The excerpt must convince a reader to open the post. It can open in the first person ("I built a Claude Code plugin that..."). Count the characters with a command, never by eye, including for candidates that are not in the file yet.
+- Tags: lowercase, checked against the vocabulary of existing posts. A tag can contain a space: `claude code` shows as `claude-code`.
+- First block after the front matter (after the header image when there is one):
 
-      [NOTE]
-      ====
-      This post was written with the help of AI.
-      ====
+      > [!NOTE]
+      > This post was written with the help of AI.
 
-- One sentence per line. Every link ends with `^` so it opens in a new tab, internal links included: `link:/YYYY/MM/DD/slug.html[text^]`.
-- A cross-reference uses the title of its section as link text: `<<own-merge,Why Renovate merges the PR itself>>`. Never "the next section", "the merge section", or "below". A comma in the title is fine, Asciidoctor splits at the first comma only.
-- Admonitions: NOTE, TIP, IMPORTANT, WARNING. WARNING is for a risk the reader could miss.
-- Steps go in lists, numbered from 1. Examples go in code blocks, not inline. A command snippet says it is typed in the Claude Code session. Callouts use `<1>`.
-- Images: `image:name.png[alt="..."]`, with no `width`, so a wide image uses the full content width. Light theme screenshots. Add `role=bordered` when a screenshot could be mistaken for post text.
-- A header image, when there is one, is named `header.png` and sits between the header and the AI note.
+- One sentence per line. Links open in a new tab on their own, except links to a section of the same post. Internal links: `[text](/YYYY/MM/DD/slug.html)`.
+- Sections are `##` and `###` headings. The title comes from the front matter, so a post has no `#` heading. A section that is linked gets a short anchor: `## Why Renovate merges the PR itself {#own-merge}`.
+- A cross-reference uses the title of its section as link text: `[Why Renovate merges the PR itself](#own-merge)`. Never "the next section", "the merge section", or "below".
+- Admonitions: `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]` on the first line of a quote. WARNING is for a risk the reader could miss.
+- Steps go in lists, numbered from 1. Examples go in code blocks, not inline. A command snippet says it is typed in the Claude Code session.
+- A code block can have a title: ```` ```json {title="renovate.jsonc"} ````. Callouts end a code line with `// <1>`, `# <1>`, `-- <1>` or `<1>`, followed by a numbered list with `{.callouts}` on its own line. The build fails when the numbers and the list do not match.
+- Images: `![alt text](/assets/images/posts/<slug>/name.png)`, with no width, so a wide image uses the full content width. A Markdown title becomes the caption: `![alt](/path.png "Caption")`. Light theme screenshots. Add `{.bordered}` on the line after the image when a screenshot could be mistaken for post text.
+- A header image, when there is one, is named `header.png` and sits between the front matter and the AI note.
 
 ## Checks
 
 ### Mechanical checks
 
-Run `.claude/check-post.sh _posts/<file>.adoc` before every review pass and before every commit.
-It checks what a command can check: the header, the excerpt length, the tags, the never-write words, the links, the images, the cross-references, leftover TODOs.
+Run `.claude/check-post.sh content/posts/<file>.md` before every review pass and before every commit.
+It checks what a command can check: the front matter, the excerpt length and apostrophes, the tags, the AI note, the never-write words, leftover AsciiDoc syntax, the links, the images, the cross-references, leftover TODOs.
+Also run `hugo --panicOnWarning`: the build checks the callouts and fails on any rendering problem.
 Fix every FAIL line. Read every LOOK line: it can be a false alarm, so keep the sentence when it is correct.
-A `// TODO source` mark is reported as LOOK. It goes away when its source is found, never by deleting the mark.
+A `<!-- TODO source -->` mark is reported as LOOK. It goes away when its source is found, never by deleting the mark.
 When a rule of this file becomes checkable by a command, add it to the script.
 
 ### Review angles
@@ -252,15 +255,15 @@ Report its list and its answers to the author as they are, next to the five ques
 
 - `.claude/check-post.sh` reports no FAIL, and every LOOK line was read.
 - The last review pass found nothing, and the fresh-reader list went to the author.
-- Every claim in the sources ledger has a source, and no `// TODO source` is left.
+- Every claim in the sources ledger has a source, and no `<!-- TODO source -->` is left.
 - The author picked the title, the excerpt, and the tags.
 
 ## Git and pull requests
 
 - Never merge a PR. Open one only at the Publish step or when the author asks.
 - Never put session links or private information in commits or PRs.
-- Commits are signed and prefixed `blog: `.
-- When the Ruby toolchain is available, run `bundle exec jekyll build` before opening a PR to catch AsciiDoc rendering errors.
+- Commits are signed. They are prefixed `blog: ` for posts and `site: ` for the site itself: layouts, styles, scripts, configuration, the workflow.
+- Run `hugo --panicOnWarning` before opening a PR, with the Hugo version pinned in `.github/build/Dockerfile`.
 - A new post: branch `blog/<slug>`, one PR, commits squashed, description kept current with the post.
 - Fixes to a published post: each batch goes in a new `blog/` branch created from an up-to-date `main`, with one signed commit and one PR. Check the state of the previous PR first: when it is merged, never push to its branch again. Squash when a PR has more than one commit.
 - When the author says a PR is merged, check the deploy of the merge commit with `gh run list --branch main --limit 1`, and check that the post URL returns the page.

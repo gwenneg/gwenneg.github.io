@@ -1,0 +1,28 @@
+{{- $posts := where site.RegularPages "Section" "posts" -}}
+<div class="status">
+  <div class="wrap">
+    {{- if and .IsPage (eq .Section "posts") }}
+    <span class="mode">READ</span>
+    <span class="sb-file">{{ .File.LogicalName }}</span>
+    <span class="sb-sec" id="sbSec">Introduction</span>
+    <span class="sb-right">
+      <span class="sb-keys"><kbd>←</kbd> <kbd>→</kbd> section  <kbd>t</kbd> contents  <kbd>/</kbd> search</span>
+      <span id="sbPct">0%</span>
+      <button class="sb-toc" id="sbToc" type="button" aria-controls="sheet" aria-expanded="false">☰ contents</button>
+    </span>
+    {{- else if or .IsHome (eq .Kind "term") }}
+    {{- $list := cond .IsHome $posts .Pages }}
+    <span class="mode">LIST</span>
+    <span class="sb-file">{{ if .IsHome }}posts/{{ else }}tags/{{ partial "tag-label.html" .Title }}/{{ end }}</span>
+    <span class="sb-info">{{ len $list }} post{{ if ne (len $list) 1 }}s{{ end }}{{ with $list }}{{ $first := (index (last 1 .) 0).Date.Year }}{{ $last := (index . 0).Date.Year }}, {{ $first }}{{ if ne $first $last }} to {{ $last }}{{ end }}{{ end }}</span>
+    <span class="sb-right"><span class="sb-keys"><kbd>/</kbd> search</span></span>
+    {{- else }}
+    <span class="mode">VIEW</span>
+    <span class="sb-file">{{ if eq .Kind "taxonomy" }}tags/{{ else if .File }}{{ .File.LogicalName }}{{ else }}{{ .RelPermalink }}{{ end }}</span>
+    <span class="sb-info"></span>
+    {{- if ne .Layout "search" }}
+    <span class="sb-right"><span class="sb-keys"><kbd>/</kbd> search</span></span>
+    {{- end }}
+    {{- end }}
+  </div>
+</div>

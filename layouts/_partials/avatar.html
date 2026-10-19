@@ -1,0 +1,7 @@
+{{- /* The author photo, cropped square and converted to WebP at 1x and 2x the displayed size. */ -}}
+{{- $size := .size -}}
+{{- with resources.Get "images/gwenneg.png" -}}
+{{- $x1 := .Fill (printf "%dx%d Center webp q85" $size $size) -}}
+{{- $x2 := .Fill (printf "%dx%d Center webp q85" (mul $size 2) (mul $size 2)) -}}
+<img class="{{ $.class }}" src="{{ $x1.RelPermalink }}" srcset="{{ $x1.RelPermalink }} 1x, {{ $x2.RelPermalink }} 2x" width="{{ $size }}" height="{{ $size }}" alt="{{ $.alt }}"{{ if $.lazy }} loading="lazy"{{ end }} decoding="async">
+{{- end -}}

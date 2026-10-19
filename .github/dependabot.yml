@@ -1,10 +1,15 @@
 version: 2
 updates:
-  - package-ecosystem: "bundler"
+  - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-  - package-ecosystem: "github-actions"
-    directory: "/"
+  # The build image: Hugo on the FROM line of .github/build/Dockerfile, Pagefind in .github/build/package.json
+  - package-ecosystem: "docker"
+    directory: "/.github/build"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "npm"
+    directory: "/.github/build"
     schedule:
       interval: "weekly"

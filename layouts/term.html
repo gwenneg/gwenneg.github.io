@@ -1,0 +1,12 @@
+{{ define "main" }}
+<main class="wrap" id="main">
+  <div class="home-main">
+    <div class="prompt"><span class="glyph" aria-hidden="true">❯</span><span>grep -l "#{{ partial "tag-label.html" .Title }}" posts/*<span class="cursor" aria-hidden="true"></span></span></div>
+    <h1 class="page-title"><span class="hash">#</span>{{ partial "tag-label.html" .Title }}</h1>
+    <ol class="rows dated">
+      {{- range .Pages }}{{ partial "post-row.html" (dict "page" . "withYear" true) }}{{ end }}
+    </ol>
+    <p class="back"><a href="/tags/">← all tags</a></p>
+  </div>
+</main>
+{{ end }}

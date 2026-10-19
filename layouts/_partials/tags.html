@@ -1,0 +1,4 @@
+{{- /* alphabetical, as on the Jekyll site */}}
+{{- with (.GetTerms "tags").ByLinkTitle }}
+<div class="tags">{{ range . }}<a href="{{ .RelPermalink }}">{{ partial "tag-label.html" .LinkTitle }}</a>{{ end }}</div>
+{{- end }}

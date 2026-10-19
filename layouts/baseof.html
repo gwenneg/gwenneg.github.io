@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="{{ site.Language.Locale }}">
+<head>
+{{ partial "head.html" . }}
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+{{ partial "topbar.html" . }}
+{{ block "main" . }}{{ end }}
+{{ partial "footer.html" . }}
+{{ partial "status.html" . }}
+{{ $js := resources.Get "js/site.js" | minify | fingerprint }}
+<script src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}" defer></script>
+{{- if .IsHome }}
+{{ $arcade := resources.Get "js/arcade.js" | minify | fingerprint }}
+{{- /* about a third of home page views get an arcade cameo, never twice within three minutes and never for readers who ask
+     for less motion: the script is loaded only for those views */}}
+<script>
+(function () {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || Math.random() > 0.33) return;
+  try { if (Date.now() - (+localStorage.getItem('arcade-last') || 0) < 3 * 60e3) return; } catch (e) {}
+  var s = document.createElement('script');
+  s.src = {{ $arcade.RelPermalink }};
+  s.integrity = {{ $arcade.Data.Integrity }};
+  document.body.append(s);
+})();
+</script>
+{{- end }}
+</body>
+</html>

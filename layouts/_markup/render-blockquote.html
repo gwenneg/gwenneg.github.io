@@ -1,0 +1,7 @@
+{{- if eq .Type "alert" -}}
+{{- /* search skips the label, and the AI note that opens every post */ -}}
+{{- $aiNote := eq (.Text | plainify | strings.TrimSpace) "This post was written with the help of AI." -}}
+<aside class="adm adm-{{ .AlertType }}"{{ if $aiNote }} data-pagefind-ignore{{ end }}><div class="adm-label" data-pagefind-ignore>{{ upper .AlertType }}</div>{{ .Text }}</aside>
+{{- else -}}
+<blockquote>{{ .Text }}</blockquote>
+{{- end -}}
