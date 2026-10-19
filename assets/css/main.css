@@ -23,16 +23,16 @@
 }
 
 :root {
-  /* light theme: amber accent on a neutral background; accent2 is the same amber for now and marks terminal decoration */
+  /* light theme: cobalt blue accent on a neutral background; accent2 is the same blue for now and marks terminal decoration */
   --bg: #FFFFFF;
   --bg-elev: #F4F4F5;
   --fg: #2E2E30;
   --fg-strong: #111113;
   --muted: #6B6B70;
   --line: #E2E2E5;
-  --accent: #B45309;
+  --accent: #0055E0;
   --on-accent: #FFFFFF;
-  --accent2: #B45309;
+  --accent2: #0055E0;
   --on-accent2: #FFFFFF;
   --code-bg: #F6F6F7;
   --sx-key: #2B5DAA; --sx-str: #A0452B; --sx-lit: #7A3EB1; --sx-num: #8A5A00; --sx-com: #6E7781; --sx-fn: #1F6F5C;
